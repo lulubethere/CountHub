@@ -11,10 +11,4 @@
     return;
   }
 
-  const currentUserEl = document.getElementById('current-user');
-  if (currentUserEl) currentUserEl.textContent = `${user.name} 님`;
-
-  document.getElementById('back-btn').addEventListener('click', () => {
-    window.location.href = '03 main.html';
-  });
 })();

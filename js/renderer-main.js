@@ -11,9 +11,6 @@
     return;
   }
 
-  const currentUserEl = document.getElementById('current-user');
-  currentUserEl.textContent = user.name ? `${user.name} 님` : '';
-
   document.getElementById('inbound-btn').addEventListener('click', () => {
     window.location.href = '04-01 inbound.html';
   });

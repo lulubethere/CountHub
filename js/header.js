@@ -1,0 +1,32 @@
+(function () {
+  const container = document.getElementById('app-header');
+  if (!container) return;
+
+  const title = document.body.getAttribute('data-header-title') || 'CountHub';
+
+  fetch('partials/header.html')
+    .then(function (res) { return res.text(); })
+    .then(function (html) {
+      container.innerHTML = html;
+      var titleEl = document.getElementById('header-title');
+      var userEl = document.getElementById('current-user');
+      if (titleEl) {
+        titleEl.textContent = title;
+        titleEl.addEventListener('click', function () {
+          window.location.href = '03 main.html';
+        });
+      }
+      if (userEl) {
+        var user = null;
+        try {
+          var raw = localStorage.getItem('countHubUser');
+          user = raw ? JSON.parse(raw) : null;
+        } catch (_) {}
+        userEl.textContent = user && user.name ? user.name + ' 님' : '';
+      }
+      document.dispatchEvent(new CustomEvent('header-ready'));
+    })
+    .catch(function () {
+      document.dispatchEvent(new CustomEvent('header-ready'));
+    });
+})();
