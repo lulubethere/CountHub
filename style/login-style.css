@@ -46,6 +46,22 @@
     border-color: #007ACC;
     box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
   }
+
+  .login-auto-login {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+    color: #555;
+    cursor: pointer;
+  }
+
+  .login-auto-login input[type="checkbox"] {
+    width: 1rem;
+    height: 1rem;
+    accent-color: #007ACC;
+    cursor: pointer;
+  }
   
   #login-form button {
     padding: 12px;

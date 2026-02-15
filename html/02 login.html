@@ -13,6 +13,10 @@
       <p class="login-desc">이름을 입력하고 로그인하세요.</p>
       <form id="login-form">
         <input type="text" id="login-name" placeholder="이름" autocomplete="name" maxlength="50" />
+        <label class="login-auto-login">
+          <input type="checkbox" id="login-auto" />
+          <span>자동 로그인</span>
+        </label>
         <button type="submit" id="login-btn">로그인</button>
       </form>
       <p id="login-error" class="login-error" aria-live="polite"></p>

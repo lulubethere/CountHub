@@ -27,6 +27,8 @@
         logoutBtn.addEventListener('click', function () {
           try {
             localStorage.removeItem('countHubUser');
+            localStorage.removeItem('countHubAutoLogin');
+            localStorage.removeItem('countHubAutoLoginName');
           } catch (_) {}
           window.location.href = '02 login.html';
         });
