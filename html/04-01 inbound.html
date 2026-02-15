@@ -15,11 +15,111 @@
         <h2 class="inbound-title">입고</h2>
       </div>
     </div>
-    <div class="main-content">
-      <p class="page-desc">입고 화면입니다. 여기에 입고 관련 UI를 구성하세요.</p>
+    <div class="inbound-content">
+      <div class="inbound-form">
+        <div class="grid-row">
+          <div class="field">
+            <div class="field-label">셀러</div>
+            <div class="field-control">
+              <select id="sel-seller">
+                <option value="">선택</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">입고센터</div>
+            <div class="field-control">
+              <select id="sel-center">
+                <option value="">선택</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">상품구분</div>
+            <div class="field-control">
+              <select id="sel-type">
+                <option value="">선택</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">쇼핑몰</div>
+            <div class="field-control">
+              <select id="sel-shop">
+                <option value="">선택</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">입고예정일</div>
+            <div class="field-control">
+              <input 
+                id="dateInput"
+                placeholder="YYYYMMDD"
+                maxlength="8"
+              />
+              <div id="dateError" style="color:red; font-size:12px; display:none; margin-top:4px;">
+               존재하지 않는 날짜입니다.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-row">
+          <div class="field">
+            <div class="field-label">SKU</div>
+            <div class="field-control">
+              <input id="sku" type="text" disabled value="">
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">상품명</div>
+            <div class="field-control">
+              <input id="product-name" type="text" disabled value="">
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">유통기한</div>
+            <div class="field-control">
+              <input id="expiry" type="text" disabled value="">
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">LOT</div>
+            <div class="field-control">
+              <input id="lot" type="text" disabled value="">
+            </div>
+          </div>
+          <div class="field">
+            <div class="field-label">입고예정수량</div>
+            <div class="field-control">
+              <input id="expected-qty" type="text" disabled value="">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="excel-upload">
+        <label class="excel-label">입고엑셀파일 :</label>
+        <div class="excel-controls">
+          <input id="inbound-excel-file" type="file" accept=".xlsx,.xls" style="display:none">
+          <button id="btn-select-excel" class="excel-btn">선택</button>
+        </div>
+      </div>
     </div>
   </div>
   <script src="../js/header.js"></script>
   <script src="../js/renderer-inbound.js"></script>
+  <script>
+    (function(){
+      const btn = document.getElementById('btn-select-excel');
+      const input = document.getElementById('inbound-excel-file');
+      if(!btn || !input) return;
+      btn.addEventListener('click', function(){ input.click(); });
+      input.addEventListener('change', function(e){
+        btn.textContent = (e.target.files && e.target.files.length) ? '파일 선택됨' : '선택';
+      });
+    })();
+  </script>
 </body>
 </html>
