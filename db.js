@@ -1,0 +1,103 @@
+const { Client } = require('pg');
+
+// Supabase PostgreSQL 연결 설정
+// 비밀번호는 환경변수 SUPABASE_DB_PASSWORD 사용 권장 (보안)
+const dbConfig = {
+  host: process.env.SUPABASE_DB_HOST || 'aws-1-ap-south-1.pooler.supabase.com',
+  port: parseInt(process.env.SUPABASE_DB_PORT || '5432', 10),
+  database: process.env.SUPABASE_DB_NAME || 'postgres',
+  user: process.env.SUPABASE_DB_USER || 'postgres.eaavbsmphazwbqtlkycm',
+  password: process.env.SUPABASE_DB_PASSWORD || 'lulujy973164',
+  ssl: { rejectUnauthorized: false }
+};
+
+let _client = null;
+let _connected = false;
+
+/**
+ * DB 클라이언트 반환 (싱글톤). 필요 시 새로 생성.
+ * @returns {import('pg').Client}
+ */
+function getClient() {
+  if (!_client) {
+    _client = new Client(dbConfig);
+    _connected = false;
+  }
+  return _client;
+}
+
+/**
+ * 연결 테스트. 성공 시 true, 실패 시 에러 throw.
+ * @returns {Promise<boolean>}
+ */
+async function testConnection() {
+  const client = getClient();
+  try {
+    if (!_connected) await client.connect();
+    _connected = true;
+    const res = await client.query('SELECT 1 as ok');
+    await client.end();
+    _client = null;
+    _connected = false;
+    return res.rows[0].ok === 1;
+  } catch (err) {
+    if (_client) {
+      try {
+        await _client.end();
+      } catch (_) {}
+      _client = null;
+      _connected = false;
+    }
+    throw err;
+  }
+}
+
+/**
+ * 쿼리 실행 헬퍼 (연결 → 쿼리 → 종료). 짧은 작업용.
+ * @param {string} text
+ * @param {any[]} [params]
+ * @returns {Promise<import('pg').QueryResult>}
+ */
+async function query(text, params) {
+  const client = getClient();
+  if (!_connected) {
+    await client.connect();
+    _connected = true;
+  }
+  return client.query(text, params);
+}
+
+/**
+ * DB 연결 종료 (앱 종료 시 등에 호출)
+ */
+async function close() {
+  if (_client) {
+    await _client.end();
+    _client = null;
+    _connected = false;
+  }
+}
+
+/**
+ * 이름으로 사용자 조회 (관리자가 만든 계정인지 확인)
+ * @param {string} name
+ * @returns {Promise<{ id: number, name: string } | null>}
+ */
+async function findUserByName(name) {
+  const trimmed = (name || '').trim();
+  if (!trimmed) return null;
+  const res = await query(
+    'SELECT id, username FROM "Users" WHERE username = $1 LIMIT 1',
+    [trimmed]
+  );
+  return res.rows[0] || null;
+}
+
+module.exports = {
+  dbConfig,
+  getClient,
+  testConnection,
+  query,
+  close,
+  findUserByName
+};

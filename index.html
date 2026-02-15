@@ -1,19 +1,37 @@
 <!DOCTYPE html>
-<html>  
+<html>
 <head>
   <meta charset="UTF-8">
   <title>CountHub</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <h1>CountHub</h1>
-  <p>이것은 나의 첫 데스크탑 앱입니다.</p>
-  
-  <button id="myButton">클릭하세요</button>
-  
-  <div id="result"></div>
+  <!-- 로그인 화면 -->
+  <div id="login-screen" class="screen">
+    <div class="login-card">
+      <h1 class="login-title">CountHub</h1>
+      <p class="login-desc">이름을 입력하고 로그인하세요.</p>
+      <form id="login-form">
+        <input type="text" id="login-name" placeholder="이름" autocomplete="name" maxlength="50" />
+        <button type="submit" id="login-btn">로그인</button>
+      </form>
+      <p id="login-error" class="login-error" aria-live="polite"></p>
+    </div>
+  </div>
 
-  <!-- JavaScript 파일 연결 (WinForms의 코드 비하인드와 비슷) -->
+  <!-- 메인 화면 (로그인 후 표시) -->
+  <div id="main-screen" class="screen hidden">
+    <header class="main-header">
+      <h1>CountHub</h1>
+      <span id="current-user" class="current-user"></span>
+    </header>
+    <main class="main-content">
+      <p>이것은 나의 첫 데스크탑 앱입니다.</p>
+      <button id="myButton">클릭하세요</button>
+      <div id="result"></div>
+    </main>
+  </div>
+
   <script src="renderer.js"></script>
 </body>
 </html>

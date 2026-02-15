@@ -1,6 +1,7 @@
 // Electron 모듈 가져오기
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const db = require('./db.js');
 
 // 윈도우 객체를 전역으로 유지 (가비지 컬렉션 방지)
 let mainWindow;
@@ -27,6 +28,30 @@ function createWindow() {
     mainWindow = null;
   });
 }
+
+// DB 에러 메시지를 한글로 변환
+function getDbErrorMessage(err) {
+  const msg = (err && err.message) || '';
+  if (msg.includes('does not exist') || msg.includes('relation')) {
+    return '존재하지 않는 사용자 입니다.';
+  }
+  if (msg.includes('connection') || msg.includes('ECONNREFUSED') || msg.includes('ENOTFOUND')) {
+    return '데이터베이스에 연결할 수 없습니다. 네트워크를 확인하세요.';
+  }
+  return msg || '일시적인 오류가 발생했습니다. 잠시 후 다시 시도하세요.';
+}
+
+// 로그인: 이름으로 사용자 조회
+ipcMain.handle('login', async (_event, name) => {
+  try {
+    const user = await db.findUserByName(name);
+    if (!user) return { ok: false, error: '등록된 이름이 아닙니다.' };
+    const displayName = user.name ?? user.Name ?? name.trim();
+    return { ok: true, user: { id: user.id, name: displayName } };
+  } catch (err) {
+    return { ok: false, error: getDbErrorMessage(err) };
+  }
+});
 
 // 앱이 준비되면 윈도우 생성 (WinForms의 Application.Run()과 비슷)
 app.whenReady().then(createWindow);
