@@ -8,8 +8,8 @@ let mainWindow;
 // 윈도우 생성 함수 (WinForms의 new Form()과 비슷)
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 800,        // 윈도우 너비
-    height: 600,       // 윈도우 높이
+    width: 1000,        // 윈도우 너비
+    height: 1000,       // 윈도우 높이
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
