@@ -18,7 +18,7 @@ function createWindow() {
   });
 
   // HTML 파일 로드 (WinForms의 디자이너와 비슷한 역할)
-  mainWindow.loadFile('html/login.html');
+  mainWindow.loadFile('html/02 login.html');
 
   // 개발자 도구 열기 (선택사항 - 디버깅용)
   mainWindow.webContents.openDevTools();

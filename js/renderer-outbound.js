@@ -7,7 +7,7 @@
     user = null;
   }
   if (!user || !user.name) {
-    window.location.href = 'login.html';
+    window.location.href = '02 login.html';
     return;
   }
 
@@ -15,6 +15,6 @@
   if (currentUserEl) currentUserEl.textContent = `${user.name} 님`;
 
   document.getElementById('back-btn').addEventListener('click', () => {
-    window.location.href = 'main.html';
+    window.location.href = '03 main.html';
   });
 })();

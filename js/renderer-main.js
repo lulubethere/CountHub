@@ -7,7 +7,7 @@
     user = null;
   }
   if (!user || !user.name) {
-    window.location.href = 'login.html';
+    window.location.href = '02 login.html';
     return;
   }
 
@@ -15,9 +15,9 @@
   currentUserEl.textContent = user.name ? `${user.name} 님` : '';
 
   document.getElementById('inbound-btn').addEventListener('click', () => {
-    window.location.href = 'inbound.html';
+    window.location.href = '04-01 inbound.html';
   });
   document.getElementById('outbound-btn').addEventListener('click', () => {
-    window.location.href = 'outbound.html';
+    window.location.href = '04-02 outbound.html';
   });
 })();

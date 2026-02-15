@@ -21,7 +21,7 @@ loginForm.addEventListener('submit', async (e) => {
       try {
         localStorage.setItem('countHubUser', JSON.stringify({ id: user.id, name: user.name }));
       } catch (_) {}
-      window.location.href = 'main.html';
+      window.location.href = '03 main.html';
     } else {
       loginError.textContent = result.error || '로그인에 실패했습니다.';
     }
