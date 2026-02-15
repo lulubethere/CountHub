@@ -7,6 +7,7 @@ const loginName = document.getElementById('login-name');
 const loginBtn = document.getElementById('login-btn');
 const loginError = document.getElementById('login-error');
 const currentUserEl = document.getElementById('current-user');
+const title = document.getElementById("page-title");
 
 function showLogin() {
   loginScreen.classList.remove('hidden');
@@ -19,7 +20,7 @@ function showMain(user) {
   loginScreen.classList.add('hidden');
   mainScreen.classList.remove('hidden');
   const name = user && (user.name ?? user.Name);
-  currentUserEl.textContent = name ? `${name}님` : '';
+  currentUserEl.textContent = name ? `${name} 님` : '';
 }
 
 // 로그인 폼 제출
@@ -64,5 +65,13 @@ function initMainScreen() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-  showLogin();
+  showLogin();  
+});
+
+document.getElementById("inbound-btn").addEventListener("click", () => {
+  title.textContent = "CountHub 입고";
+});
+
+document.getElementById("outbound-btn").addEventListener("click", () => {
+  title.textContent = "CountHub 출고";
 });

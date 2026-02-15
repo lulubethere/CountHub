@@ -20,18 +20,17 @@
   </div>
 
   <!-- 메인 화면 (로그인 후 표시) -->
-  <div id="main-screen" class="screen hidden">
-    <header class="main-header">
-      <h1>CountHub</h1>
-      <span id="current-user" class="current-user"></span>
-    </header>
-    <main class="main-content">
-      <p>이것은 나의 첫 데스크탑 앱입니다.</p>
-      <button id="myButton">클릭하세요</button>
-      <div id="result"></div>
-    </main>
-  </div>
+<div id="main-screen" class="screen">
+  <header class="main-header">
+    <h1 id="page-title">CountHub</h1>
+    <span id="current-user" class="current-user"></span>
+  </header>
 
+  <div class="menu-buttons">
+    <button id="inbound-btn">입고</button>
+    <button id="outbound-btn">출고</button>
+  </div>
+</div>
   <script src="renderer.js"></script>
 </body>
 </html>

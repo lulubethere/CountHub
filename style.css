@@ -135,3 +135,19 @@ button:disabled {
   background-color: white;
   border-radius: 5px;
 }
+
+.hidden {
+  display: none;
+}
+
+.menu-buttons {
+  margin-top: 40px;
+  display: flex;
+  gap: 20px;
+}
+
+button {
+  padding: 15px 40px;
+  font-size: 18px;
+  cursor: pointer;
+}
