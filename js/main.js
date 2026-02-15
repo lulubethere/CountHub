@@ -9,8 +9,8 @@ let mainWindow;
 // 윈도우 생성 함수 (WinForms의 new Form()과 비슷)
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1000,        // 윈도우 너비
-    height: 1000,       // 윈도우 높이
+    width: 1600,        // 윈도우 너비
+    height: 900,       // 윈도우 높이
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false
@@ -48,6 +48,46 @@ ipcMain.handle('login', async (_event, name) => {
     if (!user) return { ok: false, error: '등록된 이름이 아닙니다.' };
     const displayName = user.name ?? user.Name ?? name.trim();
     return { ok: true, user: { id: user.id, name: displayName } };
+  } catch (err) {
+    return { ok: false, error: getDbErrorMessage(err) };
+  }
+});
+
+// 셀러 목록 (CodeMaster parent_code=100)
+ipcMain.handle('get-sellers', async () => {
+  try {
+    const rows = await db.getSellers();
+    return { ok: true, data: rows };
+  } catch (err) {
+    return { ok: false, error: getDbErrorMessage(err) };
+  }
+});
+
+// 상품구분 목록 (CodeMaster parent_code=200)
+ipcMain.handle('get-product-types', async () => {
+  try {
+    const rows = await db.getProductTypes();
+    return { ok: true, data: rows };
+  } catch (err) {
+    return { ok: false, error: getDbErrorMessage(err) };
+  }
+});
+
+// 입고센터 목록 (CodeMaster parent_code=300)
+ipcMain.handle('get-centers', async () => {
+  try {
+    const rows = await db.getCenters();
+    return { ok: true, data: rows };
+  } catch (err) {
+    return { ok: false, error: getDbErrorMessage(err) };
+  }
+});
+
+// 쇼핑몰 목록 (CodeMaster parent_code=400)
+ipcMain.handle('get-shops', async () => {
+  try {
+    const rows = await db.getShops();
+    return { ok: true, data: rows };
   } catch (err) {
     return { ok: false, error: getDbErrorMessage(err) };
   }

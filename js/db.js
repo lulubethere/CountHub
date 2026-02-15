@@ -93,11 +93,63 @@ async function findUserByName(name) {
   return res.rows[0] || null;
 }
 
+/**
+ * CodeMaster에서 parent_code=100(셀러) 목록 조회
+ * @returns {Promise<Array<{ code: number|string, name: string }>>}
+ */
+async function getSellers() {
+  const res = await query(
+    'SELECT code, name FROM "CodeMaster" WHERE parent_code = 100 ORDER BY sort_order',
+    []
+  );
+  return res.rows || [];
+}
+
+/**
+ * CodeMaster에서 parent_code=200(상품구분) 목록 조회
+ * @returns {Promise<Array<{ code: number|string, name: string }>>}
+ */
+async function getProductTypes() {
+  const res = await query(
+    'SELECT code, name FROM "CodeMaster" WHERE parent_code = 200 ORDER BY sort_order',
+    []
+  );
+  return res.rows || [];
+}
+
+/**
+ * CodeMaster에서 parent_code=300(입고센터) 목록 조회
+ * @returns {Promise<Array<{ code: number|string, name: string }>>}
+ */
+async function getCenters() {
+  const res = await query(
+    'SELECT code, name FROM "CodeMaster" WHERE parent_code = 300 ORDER BY sort_order',
+    []
+  );
+  return res.rows || [];
+}
+
+/**
+ * CodeMaster에서 parent_code=400(쇼핑몰) 목록 조회
+ * @returns {Promise<Array<{ code: number|string, name: string }>>}
+ */
+async function getShops() {
+  const res = await query(
+    'SELECT code, name FROM "CodeMaster" WHERE parent_code = 400 ORDER BY sort_order',
+    []
+  );
+  return res.rows || [];
+}
+
 module.exports = {
   dbConfig,
   getClient,
   testConnection,
   query,
   close,
-  findUserByName
+  findUserByName,
+  getSellers,
+  getProductTypes,
+  getCenters,
+  getShops
 };
