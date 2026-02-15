@@ -16,19 +16,6 @@ body {
   display: none;
 }
 
-button {
-  padding: 10px 20px;
-  font-size: 16px;
-  background-color: #007ACC;
-  color: white;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #005A9E;
-}
 
 button:disabled {
   opacity: 0.7;
@@ -46,7 +33,28 @@ button:disabled {
   display: none;
 }
 
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 8px; /* 이름과 아이콘 사이 간격 */
+}
 
-
-
-
+.logout-icon {
+  background: none;      /* 배경 제거 */
+  border: none;          /* 테두리 제거 */
+  padding: 4px;          /* 클릭 영역은 확보하되 외형은 작게 */
+  cursor: pointer;
+  color: #666;           /* 기본 색상을 무채색으로 낮춤 */
+  display: flex;
+  align-items: center;
+  transition: color 0.2s ease; /* 부드러운 색상 변경 */
+}
+  
+.logout-icon:hover {
+  background-color: transparent; /* 파란색 배경 방지 */
+  color: #333;                             /* 아이콘 색상만 진하게 */
+  transform: scale(1.1);                   /* 살짝 커지는 효과 (선택사항) */
+}
+.logout-icon svg {
+  display: block;        /* 여백 문제 방지 */
+}

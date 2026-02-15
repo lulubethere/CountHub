@@ -22,6 +22,15 @@
         } catch (_) {}
         userEl.textContent = user && user.name ? user.name + ' 님' : '';
       }
+      var logoutBtn = document.getElementById('logout-btn');
+      if (logoutBtn) {
+        logoutBtn.addEventListener('click', function () {
+          try {
+            localStorage.removeItem('countHubUser');
+          } catch (_) {}
+          window.location.href = '02 login.html';
+        });
+      }
       document.dispatchEvent(new CustomEvent('header-ready'));
     })
     .catch(function () {
