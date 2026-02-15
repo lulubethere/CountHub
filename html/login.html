@@ -2,11 +2,10 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>CountHub</title>
-  <link rel="stylesheet" href="style.css">
+  <title>CountHub - 로그인</title>
+  <link rel="stylesheet" href="../style.css">
 </head>
 <body>
-  <!-- 로그인 화면 -->
   <div id="login-screen" class="screen">
     <div class="login-card">
       <h1 class="login-title">CountHub</h1>
@@ -18,19 +17,6 @@
       <p id="login-error" class="login-error" aria-live="polite"></p>
     </div>
   </div>
-
-  <!-- 메인 화면 (로그인 후 표시) -->
-<div id="main-screen" class="screen">
-  <header class="main-header">
-    <h1 id="page-title">CountHub</h1>
-    <span id="current-user" class="current-user"></span>
-  </header>
-
-  <div class="menu-buttons">
-    <button id="inbound-btn">입고</button>
-    <button id="outbound-btn">출고</button>
-  </div>
-</div>
-  <script src="renderer.js"></script>
+  <script src="../js/login.js"></script>
 </body>
 </html>

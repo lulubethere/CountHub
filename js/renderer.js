@@ -65,7 +65,7 @@ function initMainScreen() {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-  showLogin();  
+  showLogin();
 });
 
 document.getElementById("inbound-btn").addEventListener("click", () => {

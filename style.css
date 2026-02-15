@@ -146,8 +146,17 @@ button:disabled {
   gap: 20px;
 }
 
-button {
-  padding: 15px 40px;
-  font-size: 18px;
-  cursor: pointer;
+.back-btn {
+  background-color: transparent;
+  color: #007ACC;
+  padding: 8px 12px;
+}
+.back-btn:hover {
+  background-color: rgba(0, 122, 204, 0.1);
+  color: #005A9E;
+}
+
+.page-desc {
+  color: #555;
+  margin: 0;
 }
