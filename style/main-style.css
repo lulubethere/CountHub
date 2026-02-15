@@ -1,0 +1,37 @@
+/* 메인 화면 */
+.main-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 24px;
+    background: #fff;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  .main-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 24px;
+    background: #fff;
+    border-bottom: 1px solid #e0e0e0;
+  }
+  
+  .current-user {
+    font-size: 0.9rem;
+    color: #555;
+  }
+  
+  .main-content {
+    flex: 1;
+    padding: 24px 30px;
+  }
+  
+  .main-content h1 {
+    padding: 0;
+  }
+  .menu-buttons {
+    margin-top: 40px;
+    display: flex;
+    gap: 20px;
+  }

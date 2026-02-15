@@ -1,0 +1,63 @@
+/* 로그인 화면 */
+#login-screen {
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(145deg, #e8eef4 0%, #d4dce6 100%);
+  }
+  
+  .login-card {
+    background: #fff;
+    padding: 2.5rem 2.5rem 2rem;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    width: 100%;
+    max-width: 340px;
+  }
+  
+  .login-title {
+    margin: 0 0 0.5rem;
+    font-size: 1.75rem;
+    color: #1a1a1a;
+    text-align: center;
+  }
+  
+  .login-desc {
+    margin: 0 0 1.5rem;
+    font-size: 0.95rem;
+    color: #555;
+    text-align: center;
+  }
+  
+  #login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  #login-name {
+    padding: 12px 14px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    outline: none;
+  }
+  
+  #login-name:focus {
+    border-color: #007ACC;
+    box-shadow: 0 0 0 2px rgba(0, 122, 204, 0.2);
+  }
+  
+  #login-form button {
+    padding: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+  }
+  
+  .login-error {
+    margin: 1rem 0 0;
+    font-size: 0.9rem;
+    color: #c00;
+    text-align: center;
+    min-height: 1.4em;
+  }
