@@ -16,6 +16,13 @@
       </div>
     </div>
     <div class="inbound-content">
+          <div class="excel-upload">
+          <label class="excel-label">입고예정엑셀파일(셀러) :</label>
+          <div class="excel-controls">
+           <input id="inbound-excel-file" type="file" accept=".xlsx,.xls" style="display:none">
+           <button id="btn-select-excel" class="excel-btn">엑셀파일 .xlsx, .xls 양식만 가능</button>
+          </div>
+        </div>
       <div class="inbound-form">
         <div class="grid-row">
           <div class="field">
@@ -69,42 +76,38 @@
           <div class="field">
             <div class="field-label">SKU</div>
             <div class="field-control">
-              <input id="sku" type="text" disabled value="">
+              <input id="sku" type="text" value="">
             </div>
           </div>
           <div class="field">
             <div class="field-label">상품명</div>
             <div class="field-control">
-              <input id="product-name" type="text" disabled value="">
+              <input id="product-name" type="text" value="">
             </div>
           </div>
           <div class="field">
             <div class="field-label">유통기한</div>
             <div class="field-control">
-              <input id="expiry" type="text" disabled value="">
+              <input id="expiry" type="text" value="">
             </div>
           </div>
           <div class="field">
             <div class="field-label">LOT</div>
             <div class="field-control">
-              <input id="lot" type="text" disabled value="">
+              <input id="lot" type="text" value="">
             </div>
           </div>
           <div class="field">
             <div class="field-label">입고예정수량</div>
             <div class="field-control">
-              <input id="expected-qty" type="text" disabled value="">
+              <input id="expected-qty" type="text" value="">
             </div>
           </div>
         </div>
       </div>
-
-      <div class="excel-upload">
-        <label class="excel-label">입고엑셀파일 :</label>
-        <div class="excel-controls">
-          <input id="inbound-excel-file" type="file" accept=".xlsx,.xls" style="display:none">
-          <button id="btn-select-excel" class="excel-btn">선택</button>
-        </div>
+      <div class="excel-actions">
+        <button id="btn-process" class="action-btn">입고파일 작업</button>
+        <button id="btn-verify" class="action-btn">입고검수파일 작업</button>
       </div>
     </div>
   </div>
@@ -115,9 +118,27 @@
       const btn = document.getElementById('btn-select-excel');
       const input = document.getElementById('inbound-excel-file');
       if(!btn || !input) return;
+      const defaultLabel = '엑셀파일 .xlsx, .xls 양식만 가능';
       btn.addEventListener('click', function(){ input.click(); });
       input.addEventListener('change', function(e){
-        btn.textContent = (e.target.files && e.target.files.length) ? '파일 선택됨' : '선택';
+        const file = e.target.files && e.target.files[0];
+        if(!file){
+          btn.textContent = defaultLabel;
+          btn.title = defaultLabel;
+          return;
+        }
+        const name = file.name || '';
+        const ext = name.split('.').pop().toLowerCase();
+        if(['xlsx','xls'].includes(ext)){
+          // show truncated text in button, full name on hover
+          btn.textContent = name;
+          btn.title = name;
+        } else {
+          alert('가능한 양식이 아닙니다');
+          input.value = '';
+          btn.textContent = defaultLabel;
+          btn.title = defaultLabel;
+        }
       });
     })();
   </script>

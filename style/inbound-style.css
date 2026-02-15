@@ -24,7 +24,7 @@
 
 .excel-upload {
   max-width: 900px;
-  margin: 24px auto;
+  margin: 0px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -33,6 +33,7 @@
 .excel-label {
   font-size: 15px;
   color: #333;
+  font-weight: 600;
 }
 .excel-controls {
   display: flex;
@@ -40,12 +41,36 @@
   gap: 8px;
 }
 .excel-btn {
-  padding: 6px 10px;
-  background: #2d8cf0;
+  background: #459957;
   color: #fff;
   border: none;
   border-radius: 4px;
   cursor: pointer;
+  display: inline-block;
+  box-sizing: border-box;
+  width: 300px; /* fixed width */
+  height: 28px; /* fixed height */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+.excel-actions {
+  display: flex;
+  justify-content: center;
+  gap: 150px;
+  margin-top: 0px;
+}
+.action-btn {
+  padding: 6px 14px;
+  background: #ff5b50;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  height: 36px;
+  min-width: 160px;
 }
 .inbound-content {
     height: calc(100vh - 80px);
@@ -56,7 +81,7 @@
 }
 .inbound-form {
   max-width: 1200px;
-  margin: 18px auto;
+  margin: 30px auto;
   padding: 16px 30px;
   background: #fff;
   border: 1px solid #e6eaee;
