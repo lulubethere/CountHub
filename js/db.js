@@ -141,6 +141,22 @@ async function getShops() {
   return res.rows || [];
 }
 
+/**
+ * 셀러별 SellerColumn 매핑 조회 (엑셀 컬럼 매핑)
+ * @param {number|string} sellerCode
+ * @returns {Promise<Array<{ id: number, seller_code: number, column: string, column_code: number, name: string }>>}
+ */
+async function getSellerColumns(sellerCode) {
+  const res = await query(
+    `SELECT A.id, A.seller_code, A.column, A.column_code, B.name
+     FROM "SellerColumn" AS A
+     INNER JOIN "CodeMaster" AS B ON A.column_code = B.code
+     WHERE A.seller_code = $1`,
+    [sellerCode]
+  );
+  return res.rows || [];
+}
+
 module.exports = {
   dbConfig,
   getClient,
@@ -151,5 +167,6 @@ module.exports = {
   getSellers,
   getProductTypes,
   getCenters,
-  getShops
+  getShops,
+  getSellerColumns
 };

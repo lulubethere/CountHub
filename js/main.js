@@ -93,6 +93,16 @@ ipcMain.handle('get-shops', async () => {
   }
 });
 
+// 셀러별 컬럼 매핑 (SellerColumn + CodeMaster)
+ipcMain.handle('get-seller-columns', async (_event, sellerCode) => {
+  try {
+    const rows = await db.getSellerColumns(sellerCode);
+    return { ok: true, data: rows };
+  } catch (err) {
+    return { ok: false, error: getDbErrorMessage(err) };
+  }
+});
+
 // 앱이 준비되면 윈도우 생성 (WinForms의 Application.Run()과 비슷)
 app.whenReady().then(createWindow);
 

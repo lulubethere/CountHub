@@ -17,6 +17,47 @@ document.addEventListener("DOMContentLoaded", async function () {
 
   // 셀러 목록 DB에서 로드
   const selSeller = document.getElementById("sel-seller");
+  const nameToFieldId = {
+    'SKU': 'sku',
+    '상품명': 'product-name',
+    '유통기한': 'expiry',
+    '로트': 'lot',
+    '수량': 'expected-qty'
+  };
+  const defaultLabels = {
+    'sku': 'SKU',
+    'product-name': '상품명',
+    'expiry': '유통기한',
+    'lot': 'LOT',
+    'expected-qty': '입고예정수량'
+  };
+
+  function clearColumnBindings() {
+    Object.keys(defaultLabels).forEach(function (id) {
+      const input = document.getElementById(id);
+      if (input) {
+        input.value = '';
+        input.removeAttribute('data-column');
+        input.removeAttribute('data-column-code');
+      }
+    });
+  }
+
+  function bindSellerColumns(rows) {
+    clearColumnBindings();
+    if (!rows || !rows.length) return;
+    rows.forEach(function (row) {
+      const fieldId = nameToFieldId[row.name];
+      if (!fieldId) return;
+      const input = document.getElementById(fieldId);
+      if (input) {
+        input.setAttribute('data-column', row.column || '');
+        input.setAttribute('data-column-code', String(row.column_code || ''));
+        input.value = row.column ? String(row.column) : '';
+      }
+    });
+  }
+
   if (selSeller) {
     try {
       const result = await ipcRenderer.invoke('get-sellers');
@@ -29,6 +70,25 @@ document.addEventListener("DOMContentLoaded", async function () {
     } catch (e) {
       console.error('셀러 목록 로드 실패:', e);
     }
+
+    selSeller.addEventListener('change', async function () {
+      const sellerCode = (selSeller.value || '').trim();
+      if (!sellerCode) {
+        clearColumnBindings();
+        return;
+      }
+      try {
+        const result = await ipcRenderer.invoke('get-seller-columns', sellerCode);
+        if (result.ok && result.data) {
+          bindSellerColumns(result.data);
+        } else {
+          clearColumnBindings();
+        }
+      } catch (e) {
+        console.error('셀러 컬럼 매핑 로드 실패:', e);
+        clearColumnBindings();
+      }
+    });
   }
 
   // 상품구분 목록 DB에서 로드
