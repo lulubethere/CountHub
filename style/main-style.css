@@ -3,16 +3,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 10px 24px;
-    background: #fff;
-    border-bottom: 1px solid #e0e0e0;
-  }
-  
-  .main-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 24px;
+    padding: 0px 20px;
     background: #fff;
     border-bottom: 1px solid #e0e0e0;
   }
@@ -22,16 +13,29 @@
     color: #555;
   }
   
-  .main-content {
-    flex: 1;
-    padding: 24px 30px;
-  }
+.main-content {
+  height: calc(100vh - 80px); /* 헤더 높이 제외 (대략값) */
+  display: flex;
+  justify-content: center;  /* 가로 가운데 */
+  align-items: center;      /* 세로 가운데 */
+}
   
-  .main-content h1 {
-    padding: 0;
-  }
-  .menu-buttons {
-    margin-top: 40px;
-    display: flex;
-    gap: 20px;
-  }
+.menu-buttons {
+  display: flex;
+  gap: 80px;   /* 버튼 사이 간격 */
+}
+
+.menu-buttons button {
+  padding: 10px 50px;
+  font-size: 25px;
+  border-radius: 8px;
+  border: none;
+  background-color: #4634e9;
+  color: white;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.menu-buttons button:hover {
+  background-color: #231696;
+}

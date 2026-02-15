@@ -1,4 +1,10 @@
 /* 공통 */
+
+h1 {
+    margin-block-start: 8px;
+    margin-block-end: 8px;
+}
+
 body {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
   margin: 0;
@@ -58,3 +64,4 @@ button:disabled {
 .logout-icon svg {
   display: block;        /* 여백 문제 방지 */
 }
+

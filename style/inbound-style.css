@@ -2,3 +2,22 @@
     color: #555;
     margin: 0;
   }
+
+.inbound-header {
+  background: #f7f9fb;
+  border-bottom: 1px solid #e1e6ea;
+}
+.inbound-header-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 5px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.inbound-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 500;
+  color: #222;
+}
