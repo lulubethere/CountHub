@@ -2,8 +2,6 @@
   const container = document.getElementById('app-header');
   if (!container) return;
 
-  const title = document.body.getAttribute('data-header-title') || 'CountHub';
-
   fetch('partials/header.html')
     .then(function (res) { return res.text(); })
     .then(function (html) {
@@ -11,7 +9,7 @@
       var titleEl = document.getElementById('header-title');
       var userEl = document.getElementById('current-user');
       if (titleEl) {
-        titleEl.textContent = title;
+        titleEl.textContent = 'CountHub';
         titleEl.addEventListener('click', function () {
           window.location.href = '03 main.html';
         });
