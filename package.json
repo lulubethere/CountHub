@@ -4,14 +4,16 @@
   "main": "js/main.js",
   "scripts": {
     "start": "electron .",
-    "test:db": "node scripts/test-db.js"
+    "test:db": "node scripts/test-db.js",
+    "build": "electron-builder"
   },
   "keywords": [],
   "author": "lulu & jjinory",
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "electron": "^40.4.1"
+    "electron": "^40.4.1",
+    "electron-builder": "^26.8.1"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
@@ -19,5 +21,12 @@
     "pg": "^8.18.0",
     "xlsx": "^0.18.5",
     "xlsx-populate": "^1.21.0"
+  },
+  "build": {
+    "appId": "CountHub",
+    "productName": "CountHub",
+    "win": {
+      "target": "nsis"
+    }
   }
 }
