@@ -1,7 +1,10 @@
 // Electron 모듈 가져오기
-const { app, BrowserWindow, ipcMain } = require('electron');
-const path = require('path');
-const db = require('./db.js');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const path = require('path'); 
+const db = require('./db.js'); 
+const fs = require("fs"); 
+const XLSX = require("xlsx"); 
+const ExcelJS = require('exceljs');
 
 // 윈도우 객체를 전역으로 유지 (가비지 컬렉션 방지)
 let mainWindow;
@@ -119,4 +122,125 @@ app.on('activate', function () {
   if (mainWindow === null) {
     createWindow();
   }
+});
+
+ipcMain.handle('process-verify-file', async (_, payload) => {
+  try {
+    const {
+      verifyPath,
+      sellerPath,
+      sellerName,
+      shopName,
+      dateValue,
+      columnMap
+    } = payload;
+
+if (!verifyPath || !sellerPath) {
+  return { ok: false, error: '엑셀 파일을 찾을 수 없습니다.' };
+}
+
+if (!columnMap) {
+  return { ok: false, error: '컬럼 매핑 정보가 없습니다.' };
+}
+
+if (!fs.existsSync(sellerPath)) {
+  return { ok: false, error: 'seller 파일이 존재하지 않습니다.' };
+}
+
+if (!fs.existsSync(verifyPath)) {
+  return { ok: false, error: 'verify 파일이 존재하지 않습니다.' };
+}
+
+    const verifyWorkbook = new ExcelJS.Workbook();
+    await verifyWorkbook.xlsx.readFile(verifyPath);
+    const verifySheet = verifyWorkbook.worksheets[0];
+
+    const sellerWorkbook = new ExcelJS.Workbook();
+    await sellerWorkbook.xlsx.readFile(sellerPath);
+    const sellerSheet = sellerWorkbook.worksheets[0];
+
+    // =========================
+    // 1️⃣ 상단 값 입력 (서식 유지)
+    // =========================
+    verifySheet.getCell('A1').value = sellerName;
+    verifySheet.getCell('B1').value = shopName;
+    verifySheet.getCell('K1').value = dateValue;
+
+    // =========================
+    // 2️⃣ seller 데이터 읽기
+    // =========================
+    function getColumnData(colLetter) {
+      const data = [];
+      if (!colLetter) return data;
+
+      const col = sellerSheet.getColumn(colLetter);
+      col.eachCell({ includeEmpty: false }, (cell, rowNumber) => {
+        if (rowNumber >= 2 && cell.value !== null && cell.value !== '') {
+          data.push(cell.value);
+        }
+      });
+      return data;
+    }
+
+    const skuData = getColumnData(columnMap.sku);
+    const nameData = getColumnData(columnMap.productName);
+    const expiryData = getColumnData(columnMap.expiry);
+    const lotData = getColumnData(columnMap.lot);
+    const qtyData = getColumnData(columnMap.qty);
+
+    const maxLength = Math.max(
+      skuData.length,
+      nameData.length,
+      expiryData.length,
+      lotData.length,
+      qtyData.length
+    );
+
+    // =========================
+    // 3️⃣ verify에 붙여넣기
+    // =========================
+    for (let i = 0; i < maxLength; i++) {
+      const rowIndex = 3 + i;
+
+      verifySheet.getCell(`B${rowIndex}`).value = skuData[i] || '';
+      verifySheet.getCell(`C${rowIndex}`).value = nameData[i] || '';
+      verifySheet.getCell(`F${rowIndex}`).value = expiryData[i] || '';
+      verifySheet.getCell(`G${rowIndex}`).value = lotData[i] || '';
+      verifySheet.getCell(`H${rowIndex}`).value = qtyData[i] || '';
+    }
+
+    // =========================
+    // 4️⃣ 새 파일로 저장 (원본 보호)
+    // =========================
+    const outputPath = path.join(
+      path.dirname(verifyPath),
+      `검수완료_${Date.now()}.xlsx`
+    );
+
+    await verifyWorkbook.xlsx.writeFile(outputPath);
+
+    return { ok: true, path: outputPath };
+
+  } catch (err) {
+    console.error(err);
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle('select-excel-file', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    filters: [
+      { name: 'Excel Files', extensions: ['xlsx', 'xls'] }
+    ]
+  });
+ 
+  if (result.canceled || !result.filePaths.length) {
+    return { ok: false };
+  }
+
+  return {
+    ok: true,
+    path: result.filePaths[0]
+  };
 });

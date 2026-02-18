@@ -17,10 +17,11 @@
     </div>
     <div class="inbound-content">
           <div class="excel-upload">
-          <label class="excel-label">입고예정엑셀파일(셀러) :</label>
+          <label class="excel-label">입고예정엑셀파일(셀러) : </label>
           <div class="excel-controls">
-           <input id="inbound-excel-file" type="file" accept=".xlsx,.xls" style="display:none">
-           <button id="btn-select-excel" class="excel-btn">엑셀파일 .xlsx, .xls 양식만 가능</button>
+            <button id="btn-select-excel" class="excel-btn">
+              엑셀파일 .xlsx, .xls 양식만 가능
+            </button>
           </div>
         </div>
       <div class="inbound-form">
@@ -62,6 +63,8 @@
             <div class="field-control">
               <input 
                 id="dateInput"
+                type="text"
+                inputmode="numeric"
                 placeholder="YYYYMMDD"
                 maxlength="8"
               />
@@ -106,41 +109,32 @@
         </div>
       </div>
       <div class="excel-actions">
-        <button id="btn-process" class="action-btn">입고파일 작업</button>
-        <button id="btn-verify" class="action-btn">입고검수파일 작업</button>
+        <div class="action-row">
+          <button id="btn-process" class="action-btn">입고파일 작업</button>
+          <button id="btn-verify" class="action-btn">입고검수파일 작업</button>
+        </div>
+        <div class="action-row">
+          <div class="excel-upload">
+            <div class="excel-controls">
+              <button id="btn-select-inbound-file" class="excel-btn">
+                 입고파일양식 엑셀첨부 (.xlsx .xls)
+              </button>
+            </div>
+          </div>
+          <div class="excel-upload">
+            <div class="excel-controls">
+              <button id="btn-select-verify-file" class="excel-btn">
+                 입고검수파일양식 엑셀첨부 (.xlsx .xls)
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
   <script src="../js/header.js"></script>
   <script src="../js/renderer-inbound.js"></script>
-  <script>
-    (function(){
-      const btn = document.getElementById('btn-select-excel');
-      const input = document.getElementById('inbound-excel-file');
-      if(!btn || !input) return;
-      const defaultLabel = '엑셀파일 .xlsx, .xls 양식만 가능';
-      btn.addEventListener('click', function(){ input.click(); });
-      input.addEventListener('change', function(e){
-        const file = e.target.files && e.target.files[0];
-        if(!file){
-          btn.textContent = defaultLabel;
-          btn.title = defaultLabel;
-          return;
-        }
-        const name = file.name || '';
-        const ext = name.split('.').pop().toLowerCase();
-        if(['xlsx','xls'].includes(ext)){
-          // show truncated text in button, full name on hover
-          btn.textContent = name;
-          btn.title = name;
-        } else {
-          alert('가능한 양식이 아닙니다');
-          input.value = '';
-          btn.textContent = defaultLabel;
-          btn.title = defaultLabel;
-        }
-      });
-    })();
-  </script>
+  <script src="../js/renderer-incheck.js"></script>
+
 </body>
 </html>
