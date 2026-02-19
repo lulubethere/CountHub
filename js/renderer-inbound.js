@@ -20,6 +20,26 @@
   let verifyExcelPath = null;
   let inboundExcelPath = null;
 
+  window.addEventListener('DOMContentLoaded', async () => {
+  console.log("페이지 로드됨 - DB 양식 확인 중...");
+  
+  try {
+    // 페이지 로드 시점에 핸들러 호출
+    const check = await ipcRenderer.invoke('check-default-template');
+    
+    if (check.ok) {
+      console.log("✅ 기본 양식 준비 완료:", check.filename);
+      // 필요하다면 화면의 상태 표시줄에 "양식 로드됨" 같은 텍스트를 넣어줄 수 있습니다.
+      // document.getElementById('status').innerText = `기본 양식 사용 가능: ${check.filename}`;
+    } else {
+      console.warn("⚠️ 기본 양식 없음:", check.error);
+      alert("DB에 기본 양식이 없습니다. 파일을 직접 선택해 주세요.");
+    }
+  } catch (err) {
+    console.error("초기 로드 에러:", err);
+  }
+});
+
   document.addEventListener("DOMContentLoaded", async function () {
     // --- [DB 데이터 로드 섹션] ---
     const selSeller = document.getElementById("sel-seller");
@@ -101,8 +121,8 @@
     // --- [검수 작업 실행 섹션] ---
     const btnVerify = document.getElementById("btn-verify");
     btnVerify?.addEventListener("click", async function () {
-      if (!sellerExcelPath || !verifyExcelPath) {
-        alert("셀러 엑셀과 검수 양식 파일을 모두 선택해주세요.");
+      if (!sellerExcelPath) {
+        alert("셀러 엑셀 파일을 선택해주세요.");
         return;
       }
 
@@ -111,7 +131,7 @@
         productName: document.getElementById("product-name")?.value.trim(),
         expiry: document.getElementById("expiry")?.value.trim(),
         lot: document.getElementById("lot")?.value.trim(),
-        qty: document.getElementById("expected-qty")?.value.trim()
+        qty: document.getElementById("expected-qty")?.value.trim(),
       };
 
       if (!columnMap.sku || !columnMap.qty) {
@@ -128,7 +148,7 @@
         sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "",
         shopName: selShop?.options[selShop.selectedIndex]?.text || "",
         dateValue: dateInput?.value || "",
-        columnMap
+        columnMap,
       });
 
       btnVerify.disabled = false;

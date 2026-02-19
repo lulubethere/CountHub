@@ -157,6 +157,29 @@ async function getSellerColumns(sellerCode) {
   return res.rows || [];
 }
 
+// db.js
+async function getDefaultExcelTemplate() {
+  try {
+    const res = await query(
+      'SELECT excelfile, description FROM "ExcelFiles" WHERE id = 1',
+      []
+    );
+
+    if (res.rows && res.rows.length > 0) {
+      const fileData = res.rows[0].excelfile;
+      
+      return {
+        buffer: fileData,
+        filename: res.rows[0].description
+      };
+    }
+    return null;
+  } catch (err) {
+    console.error("DB 쿼리 중 에러 발생:", err);
+    throw err;
+  }
+}
+
 module.exports = {
   dbConfig,
   getClient,
@@ -168,5 +191,6 @@ module.exports = {
   getProductTypes,
   getCenters,
   getShops,
-  getSellerColumns
+  getSellerColumns,
+  getDefaultExcelTemplate,
 };

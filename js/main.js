@@ -42,7 +42,36 @@ ipcMain.handle('select-excel-file', async () => {
   return result.canceled ? { ok: false } : { ok: true, path: result.filePaths[0] };
 });
 
-// --- 입고검수파일 작업 실행 (첫 번째 시트 기준) ---
+
+// [추가] DB에서 양식을 가져오는 핸들러
+ipcMain.handle('load-verify-template', async () => {
+  try {
+    const buffer = await db.getVerifyTemplate();
+    if (!buffer) return { ok: false, error: 'DB에 등록된 양식이 없습니다.' };
+    
+    // 이 buffer를 직접 넘기기보다, process 시점에서 사용하거나 
+    // 임시 파일로 저장 후 경로를 반환할 수 있습니다.
+    return { ok: true, data: buffer }; 
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle('check-default-template', async () => {
+  try {
+    const templateData = await db.getDefaultExcelTemplate();
+    if (templateData && templateData.buffer) {
+      console.log(`[초기화] 기본 양식 확인됨: ${templateData.filename} (${templateData.buffer.length} bytes)`);
+      return { ok: true, filename: templateData.filename };
+    }
+    return { ok: false, error: 'DB에 등록된 양식이 없습니다.' };
+  } catch (err) {
+    console.error("양식 체크 중 에러:", err);
+    return { ok: false, error: err.message };
+  }
+});
+
+// ... 상단 선언부 및 DB 핸들러 동일 ...
 ipcMain.handle('process-verify-file', async (_, payload) => {
   try {
     const { verifyPath, sellerPath, sellerName, shopName, dateValue, columnMap } = payload;
@@ -50,10 +79,44 @@ ipcMain.handle('process-verify-file', async (_, payload) => {
     const verifyWorkbook = new ExcelJS.Workbook();
     const sellerWorkbook = new ExcelJS.Workbook();
 
-    await verifyWorkbook.xlsx.readFile(verifyPath).catch(e => { if(!e.message.includes('company')) throw e; });
+    // 1️⃣ 입고검수파일 양식 로드 (파일 선택 vs DB 기본값)
+    if (verifyPath && verifyPath !== "") {
+      // 사용자가 직접 파일을 선택한 경우 경로로 읽기
+      await verifyWorkbook.xlsx.readFile(verifyPath).catch((e) => {
+        if (!e.message.includes("company")) throw e;
+      });
+    } else {
+      const templateData = await db.getDefaultExcelTemplate();
+
+      if (!templateData) {
+        console.error("DB에서 templateData를 받지 못함");
+        return { ok: false, error: "DB에 데이터가 없습니다." };
+      }
+
+      if (!Buffer.isBuffer(templateData.buffer)) {
+        console.error(
+          "데이터가 Buffer 형식이 아닙니다. 현재 타입:",
+          typeof templateData.buffer,
+        );
+        // 만약 Supabase/Postgres 설정에 따라 Uint8Array로 올 수도 있음 -> Buffer로 변환 필요
+        templateData.buffer = Buffer.from(templateData.buffer);
+      }
+
+      try {
+        await verifyWorkbook.xlsx.load(templateData.buffer);
+        console.log("ExcelJS: DB 양식 로드 성공!");
+      } catch (loadError) {
+        console.error("ExcelJS 로드 실패:", loadError);
+        return {
+          ok: false,
+          error: "엑셀 양식 해석 실패: " + loadError.message,
+        };
+      }
+    }
+
+    // 2️⃣ 셀러 데이터 파일 로드 (첫 번째 시트 고정)
     await sellerWorkbook.xlsx.readFile(sellerPath).catch(e => { if(!e.message.includes('company')) throw e; });
 
-    // [수정] 무조건 첫 번째(맨 왼쪽) 시트를 가져옵니다.
     const verifySheet = verifyWorkbook.worksheets[0]; 
     const sellerSheet = sellerWorkbook.worksheets[0];
 
@@ -61,96 +124,109 @@ ipcMain.handle('process-verify-file', async (_, payload) => {
       return { ok: false, error: '엑셀 시트를 찾을 수 없습니다.' };
     }
 
-    console.log(`사용 중인 셀러 시트 이름: ${sellerSheet.name}`);
+    // --- 데이터 처리 로직 (이전과 동일) ---
+    // [보조 함수] getCellValue (수식 결과값 대응)
+    function getCellValue(cell) {
+      if (!cell || cell.value === null || cell.value === undefined) return '';
+      if (typeof cell.value === 'object' && cell.value !== null) {
+        if (cell.value.result !== undefined) return cell.value.result;
+        if (cell.value.richText) return cell.value.richText.map(t => t.text).join('');
+      }
+      return cell.value;
+    }
 
-    // 1️⃣ 상단 공통 정보 입력
-    verifySheet.getCell('A1').value = sellerName || '';
-    verifySheet.getCell('B1').value = shopName || '';
-    verifySheet.getCell('N1').value = dateValue || '';
-
-    // [함수] 포함 검색 데이터 추출 (바코드, PLT 등)
+    // [함수] 포함 검색 데이터 추출 (PLT, 바코드)
     function getDataBySearchTerm(sheet, term, isBarcode = false) {
       let targetColNum = null;
       let headerRowNum = null;
-
       sheet.eachRow((row, rowNum) => {
         row.eachCell((cell) => {
-          if (cell.value) {
-            const cellText = String(cell.value).toUpperCase().replace(/\s+/g, '');
-            const searchText = term.toUpperCase().replace(/\s+/g, '');
-            if (cellText.includes(searchText)) {
-              targetColNum = cell.address.match(/[A-Z]+/)[0];
-              headerRowNum = rowNum;
-            }
+          const cellVal = String(getCellValue(cell)).toUpperCase().replace(/\s+/g, '');
+          const searchText = term.toUpperCase().replace(/\s+/g, '');
+          if (cellVal.includes(searchText)) {
+            targetColNum = cell.address.match(/[A-Z]+/)[0];
+            headerRowNum = rowNum;
           }
         });
         if (targetColNum) return false;
       });
-
       if (!targetColNum) return null;
-
       const data = [];
       for (let i = headerRowNum + 1; i <= sheet.rowCount; i++) {
         const cell = sheet.getRow(i).getCell(targetColNum);
-        let val = '';
-        if (cell.value !== null && cell.value !== undefined) {
-          val = (cell.value && typeof cell.value === 'object') ? String(cell.value.result || '') : String(cell.value);
-          if (isBarcode && val.length > 4) val = val.slice(-4);
-        }
+        let val = String(getCellValue(cell));
+        if (isBarcode && val.length > 4) val = val.slice(-4);
         data.push(val);
       }
       return data;
     }
 
-    // [함수] 고정 컬럼 데이터 추출 (SKU, 상품명 등)
+    // [함수] 일반 컬럼 데이터 추출
     function getColumnData(sheet, colLetter) {
       if (!colLetter) return [];
       const data = [];
       for(let i = 2; i <= sheet.rowCount; i++) {
         const cell = sheet.getRow(i).getCell(colLetter);
-        const val = (cell.value && typeof cell.value === 'object') ? cell.value.result : cell.value;
-        data.push(val !== null && val !== undefined ? val : '');
+        data.push(getCellValue(cell));
       }
       return data;
     }
 
-    // 데이터 추출
+    // 데이터 수집
     const skuData = getColumnData(sellerSheet, columnMap.sku);
     const nameData = getColumnData(sellerSheet, columnMap.productName);
     const expiryData = getColumnData(sellerSheet, columnMap.expiry);
     const lotData = getColumnData(sellerSheet, columnMap.lot);
     const qtyData = getColumnData(sellerSheet, columnMap.qty);
-    
     const barcodeData = getDataBySearchTerm(sellerSheet, '바코드', true);
     const pltData = getDataBySearchTerm(sellerSheet, 'PLT', false);
 
-    const maxLength = Math.max(
+    const dataLength = Math.max(
       skuData.length, nameData.length, expiryData.length, lotData.length, qtyData.length,
       (pltData ? pltData.length : 0), (barcodeData ? barcodeData.length : 0)
     );
 
-    // 2️⃣ 리스트 데이터 입력
-    for (let i = 0; i < maxLength; i++) {
-      const r = 3 + i;
-      
-      // PLT (A열)
-      if (pltData && pltData[i] !== undefined) {
-        verifySheet.getCell(`A${r}`).value = pltData[i];
-      }
+    const startRow = 3;
+    const lastRow = startRow + dataLength - 1;
 
-      verifySheet.getCell(`B${r}`).value = skuData[i] || '';     // SKU (B열)
-      verifySheet.getCell(`C${r}`).value = nameData[i] || '';    // 상품명 (C열)
-      verifySheet.getCell(`I${r}`).value = lotData[i] || '';     // LOT (I열)
-      verifySheet.getCell(`J${r}`).value = expiryData[i] || '';  // 유통기한 (J열)
-      verifySheet.getCell(`K${r}`).value = qtyData[i] || '';     // 수량 (K열)
-      
-      // 바코드 뒤 4자리 (H열)
-      if (barcodeData && barcodeData[i] !== undefined) {
-        verifySheet.getCell(`H${r}`).value = barcodeData[i];
+    verifySheet.getCell('A1').value = sellerName || '';
+    verifySheet.getCell('B1').value = shopName || '';
+    verifySheet.getCell('M1').value = dateValue || '';
+
+    // 3️⃣ 데이터 입력, 테두리, 행 높이 설정
+    for (let i = 0; i < dataLength; i++) {
+      const r = startRow + i;
+      verifySheet.getRow(r).height = 20;
+
+      if (pltData && pltData[i] !== undefined) verifySheet.getCell(`A${r}`).value = pltData[i];
+      verifySheet.getCell(`B${r}`).value = skuData[i] || '';
+      verifySheet.getCell(`C${r}`).value = nameData[i] || '';
+      verifySheet.getCell(`I${r}`).value = lotData[i] || '';
+      verifySheet.getCell(`J${r}`).value = expiryData[i] || '';
+      verifySheet.getCell(`K${r}`).value = qtyData[i] || '';
+      if (barcodeData && barcodeData[i] !== undefined) verifySheet.getCell(`H${r}`).value = barcodeData[i];
+
+      for (let col = 1; col <= 13; col++) {
+        const cell = verifySheet.getRow(r).getCell(col);
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
       }
     }
 
-    // 3️⃣ 저장
+    // 4️⃣ 마지막 행 아래 청소
+    const totalRowsInSheet = verifySheet.rowCount;
+    if (totalRowsInSheet > lastRow) {
+      for (let i = lastRow + 1; i <= totalRowsInSheet; i++) {
+        verifySheet.getRow(i).values = [];
+        verifySheet.getRow(i).border = {};
+      }
+    }
+
+    // 5️⃣ 최종 파일 저장
     const { filePath, canceled } = await dialog.showSaveDialog({
       title: '검수 완료 파일 저장',
       defaultPath: path.join(app.getPath('downloads'), `검수완료_${Date.now()}.xlsx`),
