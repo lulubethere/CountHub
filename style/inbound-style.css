@@ -138,15 +138,138 @@
 }
 
 .field-control input {
-  width: 204px;
+  width: 100%; /* 204px에서 변경 */
   padding: 7px 8px;
   border: 1px solid #d0d7dd;
   border-radius: 4px;
   font-size: 13px;
+  box-sizing: border-box; /* 추가 */
 }
 
 .field-control input[disabled] {
   background: #f5f7f9;
   color: #666;
   pointer-events: none;
+}
+
+
+/* 반응형 디자인 - 태블릿 (768px ~ 1024px) */
+@media screen and (max-width: 1024px) {
+  .inbound-form {
+    padding: 16px 20px;
+    margin: 20px auto;
+  }
+  
+  .grid-row {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  
+  .excel-upload {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .excel-label {
+    font-size: 16px;
+    margin: 0;
+  }
+  
+  .excel-btn {
+    width: 100%;
+    max-width: 300px;
+  }
+  
+  .action-row {
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+  }
+  
+  .action-btn {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+
+/* 반응형 디자인 - 모바일 (768px 미만) */
+@media screen and (max-width: 768px) {
+  .inbound-header-inner {
+    padding: 5px 15px;
+  }
+  
+  .inbound-title {
+    font-size: 14px;
+  }
+  
+  .inbound-content {
+    height: auto;
+    min-height: calc(100vh - 80px);
+    padding: 15px;
+    justify-content: flex-start;
+  }
+  
+  .inbound-form {
+    width: 100%;
+    max-width: 100%;
+    padding: 16px 15px;
+    margin: 15px 0;
+  }
+  
+  .grid-row {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .field-label {
+    font-size: 12px;
+    margin-bottom: 4px;
+  }
+  
+  .field-control select,
+  .field-control input {
+    font-size: 14px; /* 모바일에서 터치하기 쉽게 */
+    padding: 10px 8px;
+  }
+  
+  .excel-upload {
+    width: 100%;
+    max-width: 100%;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  
+  .excel-label {
+    font-size: 14px;
+    margin: 0;
+  }
+  
+  .excel-btn {
+    width: 100%;
+    max-width: 100%;
+    height: 36px;
+    font-size: 13px;
+  }
+  
+  .excel-actions {
+    width: 100%;
+    margin-top: 15px;
+  }
+  
+  .action-row {
+    flex-direction: column;
+    gap: 10px;
+    width: 100%;
+  }
+  
+  .action-btn {
+    width: 100%;
+    max-width: 100%;
+    height: 40px;
+    font-size: 14px;
+  }
 }
