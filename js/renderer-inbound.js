@@ -40,7 +40,7 @@
         console.log("✅ 입고검수파일 양식 준비 완료:", checkVerify.filename);
         if (btnSelectVerify && badgeVerify) {
           btnSelectVerify.classList.add('has-default');
-          btnSelectVerify.textContent = `입고검수파일양식 엑셀첨부 (.xlsx .xls) [기본값 사용 가능]`;
+          btnSelectVerify.textContent = `입고검수파일양식 엑셀첨부 (.xlsx .xls)`;
           badgeVerify.textContent = '기본양식 적용됨';
           badgeVerify.style.display = 'inline-block';
           badgeVerify.classList.remove('no-template');
@@ -70,7 +70,7 @@
         console.log("✅ 입고파일 양식 준비 완료:", checkInbound.filename);
         if (btnSelectInbound && badgeInbound) {
           btnSelectInbound.classList.add('has-default');
-          btnSelectInbound.textContent = `입고파일양식 엑셀첨부 (.xlsx .xls) [기본값 사용 가능]`;
+          btnSelectInbound.textContent = `입고파일양식 엑셀첨부 (.xlsx .xls)`;
           badgeInbound.textContent = '기본양식 적용됨';
           badgeInbound.style.display = 'inline-block';
           badgeInbound.classList.remove('no-template');

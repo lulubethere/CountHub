@@ -206,7 +206,6 @@ async function getInboundExcelTemplate() {
 }
 
 module.exports = {
-  dbConfig,
   getClient,
   testConnection,
   query,
