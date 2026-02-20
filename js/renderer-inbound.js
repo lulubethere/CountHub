@@ -127,7 +127,16 @@
     // 셀러 변경 시 컬럼 자동 바인딩
     selSeller?.addEventListener('change', async function () {
       const sellerCode = this.value.trim();
+      
+      // 먼저 관련 input 필드들을 모두 초기화 (공란으로)
+      Object.values(nameToFieldId).forEach(fieldId => {
+        const input = document.getElementById(fieldId);
+        if (input) input.value = '';
+      });
+      
+      // 셀러가 선택되지 않았으면 여기서 종료
       if (!sellerCode) return;
+      
       try {
         const result = await ipcRenderer.invoke('get-seller-columns', sellerCode);
         if (result.ok && result.data) {
