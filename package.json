@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "main": "js/main.js",
   "scripts": {
-    "start": "electron .",
-    "test:db": "node scripts/test-db.js",
-    "build": "electron-builder"
-  },
+  "start": "chcp 65001 >nul && electron .",
+  "test:db": "node scripts/test-db.js",
+  "build": "electron-builder"
+},
   "keywords": [],
   "author": "lulu & jjinory",
   "license": "ISC",
