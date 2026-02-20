@@ -1,13 +1,14 @@
+require('dotenv').config();
 const { Client } = require('pg');
 
 // Supabase PostgreSQL 연결 설정
-// 비밀번호는 환경변수 SUPABASE_DB_PASSWORD 사용 권장 (보안)
+// 환경변수는 .env 파일에서 로드됩니다
 const dbConfig = {
-  host: process.env.SUPABASE_DB_HOST || 'aws-1-ap-south-1.pooler.supabase.com',
+  host: process.env.SUPABASE_DB_HOST,
   port: parseInt(process.env.SUPABASE_DB_PORT || '5432', 10),
-  database: process.env.SUPABASE_DB_NAME || 'postgres',
-  user: process.env.SUPABASE_DB_USER || 'postgres.eaavbsmphazwbqtlkycm',
-  password: process.env.SUPABASE_DB_PASSWORD || 'lulujy973164',
+  database: process.env.SUPABASE_DB_NAME,
+  user: process.env.SUPABASE_DB_USER,
+  password: process.env.SUPABASE_DB_PASSWORD,
   ssl: { rejectUnauthorized: false }
 };
 

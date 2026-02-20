@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "main": "js/main.js",
   "scripts": {
-  "start": "chcp 65001 >nul && electron .",
-  "test:db": "node scripts/test-db.js",
-  "build": "electron-builder"
-},
+    "start": "chcp 65001 >nul && electron .",
+    "test:db": "node scripts/test-db.js",
+    "build": "electron-builder"
+  },
   "keywords": [],
   "author": "lulu & jjinory",
   "license": "ISC",
@@ -16,6 +16,7 @@
     "electron-builder": "^26.8.1"
   },
   "dependencies": {
+    "dotenv": "^17.3.1",
     "exceljs": "^4.4.0",
     "flatpickr": "^4.6.13",
     "pg": "^8.18.0",
