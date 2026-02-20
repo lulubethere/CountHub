@@ -21,20 +21,19 @@ CountHub는 Electron 기반의 데스크톱 입출고 관리 시스템입니다.
 - PostgreSQL 데이터베이스
 
 ### 설치 방법
-# 의존성 패키지 설치
+#### 의존성 패키지 설치
 ```bash
 npm install
 ```
-# 개발 모드 실행
+#### 개발 모드 실행
 ```bash
 npm start
 ```
-# 데이터베이스 테스트
+#### 데이터베이스 테스트
 ```bash
 npm run test:db
 ```
-
-# 빌드
+#### 빌드
 ```bash
 npm run build
 ```
