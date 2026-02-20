@@ -7,6 +7,10 @@
     background: #fff;
     border-bottom: 1px solid #e0e0e0;
   }
+
+  #header-title {
+    cursor: pointer;
+  }
   
   .current-user {
     font-size: 0.9rem;
