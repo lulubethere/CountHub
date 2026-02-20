@@ -56,6 +56,23 @@
   text-overflow: ellipsis;
   text-align: center;
 }
+.template-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  background: #4CAF50;
+  color: #fff;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.template-badge.no-template {
+  background: #f44336;
+}
+.excel-btn.has-default {
+  background: #3d8b47;
+  position: relative;
+}
 
 .excel-actions {
   display: flex;

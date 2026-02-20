@@ -20,27 +20,77 @@
   let verifyExcelPath = null;
   let inboundExcelPath = null;
 
-  window.addEventListener('DOMContentLoaded', async () => {
-  console.log("페이지 로드됨 - DB 양식 확인 중...");
-  
-  try {
-    // 페이지 로드 시점에 핸들러 호출
-    const check = await ipcRenderer.invoke('check-default-template');
-    
-    if (check.ok) {
-      console.log("✅ 기본 양식 준비 완료:", check.filename);
-      // 필요하다면 화면의 상태 표시줄에 "양식 로드됨" 같은 텍스트를 넣어줄 수 있습니다.
-      // document.getElementById('status').innerText = `기본 양식 사용 가능: ${check.filename}`;
-    } else {
-      console.warn("⚠️ 기본 양식 없음:", check.error);
-      alert("DB에 기본 양식이 없습니다. 파일을 직접 선택해 주세요.");
-    }
-  } catch (err) {
-    console.error("초기 로드 에러:", err);
-  }
-});
-
   document.addEventListener("DOMContentLoaded", async function () {
+    // --- [DB 양식 확인 섹션] ---
+    console.log("페이지 로드됨 - DB 양식 확인 중...");
+    
+    // 입고검수파일양식 버튼 및 뱃지
+    const btnSelectVerify = document.getElementById('btn-select-verify-file');
+    const badgeVerify = document.getElementById('verify-template-badge');
+    
+    // 입고파일양식 버튼 및 뱃지
+    const btnSelectInbound = document.getElementById('btn-select-inbound-file');
+    const badgeInbound = document.getElementById('inbound-template-badge');
+    
+    // 입고검수파일양식 체크 (id = 1)
+    try {
+      const checkVerify = await ipcRenderer.invoke('check-default-template');
+      
+      if (checkVerify.ok) {
+        console.log("✅ 입고검수파일 양식 준비 완료:", checkVerify.filename);
+        if (btnSelectVerify && badgeVerify) {
+          btnSelectVerify.classList.add('has-default');
+          btnSelectVerify.textContent = `입고검수파일양식 엑셀첨부 (.xlsx .xls) [기본값 사용 가능]`;
+          badgeVerify.textContent = '기본양식 적용됨';
+          badgeVerify.style.display = 'inline-block';
+          badgeVerify.classList.remove('no-template');
+        }
+      } else {
+        console.warn("⚠️ 입고검수파일 양식 없음:", checkVerify.error);
+        if (badgeVerify) {
+          badgeVerify.textContent = '기본양식 없음';
+          badgeVerify.classList.add('no-template');
+          badgeVerify.style.display = 'inline-block';
+        }
+      }
+    } catch (err) {
+      console.error("입고검수파일 양식 체크 에러:", err);
+      if (badgeVerify) {
+        badgeVerify.textContent = '기본양식 없음';
+        badgeVerify.classList.add('no-template');
+        badgeVerify.style.display = 'inline-block';
+      }
+    }
+    
+    // 입고파일양식 체크 (id = 2)
+    try {
+      const checkInbound = await ipcRenderer.invoke('check-inbound-template');
+      
+      if (checkInbound.ok) {
+        console.log("✅ 입고파일 양식 준비 완료:", checkInbound.filename);
+        if (btnSelectInbound && badgeInbound) {
+          btnSelectInbound.classList.add('has-default');
+          btnSelectInbound.textContent = `입고파일양식 엑셀첨부 (.xlsx .xls) [기본값 사용 가능]`;
+          badgeInbound.textContent = '기본양식 적용됨';
+          badgeInbound.style.display = 'inline-block';
+          badgeInbound.classList.remove('no-template');
+        }
+      } else {
+        console.warn("⚠️ 입고파일 양식 없음:", checkInbound.error);
+        if (badgeInbound) {
+          badgeInbound.textContent = '기본양식 없음';
+          badgeInbound.classList.add('no-template');
+          badgeInbound.style.display = 'inline-block';
+        }
+      }
+    } catch (err) {
+      console.error("입고파일 양식 체크 에러:", err);
+      if (badgeInbound) {
+        badgeInbound.textContent = '기본양식 없음';
+        badgeInbound.classList.add('no-template');
+        badgeInbound.style.display = 'inline-block';
+      }
+    }
     // --- [DB 데이터 로드 섹션] ---
     const selSeller = document.getElementById("sel-seller");
     const selType = document.getElementById("sel-type");
@@ -107,8 +157,26 @@
         const result = await ipcRenderer.invoke('select-excel-file');
         if (result.ok) {
           if (type === 'seller') sellerExcelPath = result.path;
-          if (type === 'verify') verifyExcelPath = result.path;
-          if (type === 'inbound') inboundExcelPath = result.path;
+          if (type === 'verify') {
+            verifyExcelPath = result.path;
+            // 파일 선택 시 뱃지 숨기기
+            const badge = document.getElementById('verify-template-badge');
+            if (badge) {
+              badge.style.display = 'none';
+              badge.classList.remove('no-template');
+            }
+            btn.classList.remove('has-default');
+          }
+          if (type === 'inbound') {
+            inboundExcelPath = result.path;
+            // 파일 선택 시 뱃지 숨기기
+            const badge = document.getElementById('inbound-template-badge');
+            if (badge) {
+              badge.style.display = 'none';
+              badge.classList.remove('no-template');
+            }
+            btn.classList.remove('has-default');
+          }
           btn.textContent = result.path.split('\\').pop();
         }
       });

@@ -57,16 +57,32 @@ ipcMain.handle('load-verify-template', async () => {
   }
 });
 
+// 입고검수파일양식 체크 (id = 1)
 ipcMain.handle('check-default-template', async () => {
   try {
-    const templateData = await db.getDefaultExcelTemplate();
+    const templateData = await db.getInboundCheckTemplate();
     if (templateData && templateData.buffer) {
-      console.log(`[초기화] 기본 양식 확인됨: ${templateData.filename} (${templateData.buffer.length} bytes)`);
+      console.log(`기본 양식 확인됨`);
       return { ok: true, filename: templateData.filename };
     }
     return { ok: false, error: 'DB에 등록된 양식이 없습니다.' };
   } catch (err) {
     console.error("양식 체크 중 에러:", err);
+    return { ok: false, error: err.message };
+  }
+});
+
+// 입고파일양식 체크 (id = 2)
+ipcMain.handle('check-inbound-template', async () => {
+  try {
+    const templateData = await db.getInboundExcelTemplate();
+    if (templateData && templateData.buffer) {
+      console.log(`입고파일 양식 확인됨`);
+      return { ok: true, filename: templateData.filename };
+    }
+    return { ok: false, error: 'DB에 등록된 양식이 없습니다.' };
+  } catch (err) {
+    console.error("입고파일 양식 체크 중 에러:", err);
     return { ok: false, error: err.message };
   }
 });
@@ -86,7 +102,7 @@ ipcMain.handle('process-verify-file', async (_, payload) => {
         if (!e.message.includes("company")) throw e;
       });
     } else {
-      const templateData = await db.getDefaultExcelTemplate();
+      const templateData = await db.getInboundCheckTemplate();
 
       if (!templateData) {
         console.error("DB에서 templateData를 받지 못함");
