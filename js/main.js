@@ -3,6 +3,7 @@ const path = require('path');
 const db = require('./db.js'); 
 const fs = require("fs"); 
 const ExcelJS = require('exceljs');
+const XLSX = require('xlsx');
 
 let mainWindow;
 
@@ -91,47 +92,36 @@ ipcMain.handle('check-inbound-template', async () => {
 ipcMain.handle('process-verify-file', async (_, payload) => {
   try {
     const { verifyPath, sellerPath, sellerName, shopName, dateValue, columnMap } = payload;
-
     const verifyWorkbook = new ExcelJS.Workbook();
     const sellerWorkbook = new ExcelJS.Workbook();
 
-    // 1️⃣ 입고검수파일 양식 로드 (파일 선택 vs DB 기본값)
-    if (verifyPath && verifyPath !== "") {
-      // 사용자가 직접 파일을 선택한 경우 경로로 읽기
-      await verifyWorkbook.xlsx.readFile(verifyPath).catch((e) => {
-        if (!e.message.includes("company")) throw e;
-      });
-    } else {
-      const templateData = await db.getInboundCheckTemplate();
-
-      if (!templateData) {
-        console.error("DB에서 templateData를 받지 못함");
-        return { ok: false, error: "DB에 데이터가 없습니다." };
-      }
-
-      if (!Buffer.isBuffer(templateData.buffer)) {
-        console.error(
-          "데이터가 Buffer 형식이 아닙니다. 현재 타입:",
-          typeof templateData.buffer,
-        );
-        // 만약 Supabase/Postgres 설정에 따라 Uint8Array로 올 수도 있음 -> Buffer로 변환 필요
-        templateData.buffer = Buffer.from(templateData.buffer);
-      }
-
-      try {
-        await verifyWorkbook.xlsx.load(templateData.buffer);
-        console.log("ExcelJS: DB 양식 로드 성공!");
-      } catch (loadError) {
-        console.error("ExcelJS 로드 실패:", loadError);
-        return {
-          ok: false,
-          error: "엑셀 양식 해석 실패: " + loadError.message,
-        };
+    // --- [수정된 부분] 엑셀 파일을 읽는 공통 함수 ---
+    async function loadWorkbook(workbook, filePath) {
+      const ext = path.extname(filePath).toLowerCase();
+      
+      if (ext === '.xls') {
+        // .xls 파일인 경우 SheetJS로 읽어서 xlsx 버퍼로 변환
+        const tempXls = XLSX.readFile(filePath);
+        const buffer = XLSX.write(tempXls, { type: 'buffer', bookType: 'xlsx' });
+        await workbook.xlsx.load(buffer);
+      } else {
+        // .xlsx 파일인 경우 기존 방식대로 읽기
+        await workbook.xlsx.readFile(filePath);
       }
     }
 
-    // 2️⃣ 셀러 데이터 파일 로드 (첫 번째 시트 고정)
-    await sellerWorkbook.xlsx.readFile(sellerPath).catch(e => { if(!e.message.includes('company')) throw e; });
+    // 1️⃣ 입고검수파일 양식 로드
+    if (verifyPath && verifyPath !== "") {
+      await loadWorkbook(verifyWorkbook, verifyPath);
+    } else {
+      // ... (DB에서 가져오는 기존 로직 동일)
+      const templateData = await db.getInboundCheckTemplate();
+      // ... 생략 ...
+      await verifyWorkbook.xlsx.load(templateData.buffer);
+    }
+
+    // 2️⃣ 셀러 데이터 파일 로드 (.xls 대응)
+    await loadWorkbook(sellerWorkbook, sellerPath);
 
     const verifySheet = verifyWorkbook.worksheets[0]; 
     const sellerSheet = sellerWorkbook.worksheets[0];
@@ -207,7 +197,7 @@ ipcMain.handle('process-verify-file', async (_, payload) => {
 
     verifySheet.getCell('A1').value = sellerName || '';
     verifySheet.getCell('B1').value = shopName || '';
-    verifySheet.getCell('M1').value = dateValue || '';
+    verifySheet.getCell('I1').value = dateValue || '';
 
     // 3️⃣ 데이터 입력, 테두리, 행 높이 설정
     for (let i = 0; i < dataLength; i++) {
@@ -217,12 +207,12 @@ ipcMain.handle('process-verify-file', async (_, payload) => {
       if (pltData && pltData[i] !== undefined) verifySheet.getCell(`A${r}`).value = pltData[i];
       verifySheet.getCell(`B${r}`).value = skuData[i] || '';
       verifySheet.getCell(`C${r}`).value = nameData[i] || '';
-      verifySheet.getCell(`I${r}`).value = lotData[i] || '';
-      verifySheet.getCell(`J${r}`).value = expiryData[i] || '';
-      verifySheet.getCell(`K${r}`).value = qtyData[i] || '';
-      if (barcodeData && barcodeData[i] !== undefined) verifySheet.getCell(`H${r}`).value = barcodeData[i];
+      verifySheet.getCell(`E${r}`).value = lotData[i] || '';
+      verifySheet.getCell(`F${r}`).value = expiryData[i] || '';
+      verifySheet.getCell(`G${r}`).value = qtyData[i] || '';
+      if (barcodeData && barcodeData[i] !== undefined) verifySheet.getCell(`D${r}`).value = barcodeData[i];
 
-      for (let col = 1; col <= 13; col++) {
+      for (let col = 1; col <= 10; col++) {
         const cell = verifySheet.getRow(r).getCell(col);
         cell.border = {
           top: { style: 'thin' },
@@ -233,12 +223,82 @@ ipcMain.handle('process-verify-file', async (_, payload) => {
       }
     }
 
-    // 4️⃣ 마지막 행 아래 청소
-    const totalRowsInSheet = verifySheet.rowCount;
-    if (totalRowsInSheet > lastRow) {
-      for (let i = lastRow + 1; i <= totalRowsInSheet; i++) {
-        verifySheet.getRow(i).values = [];
-        verifySheet.getRow(i).border = {};
+    // 3.5️⃣ 중복 행 합산 로직 추가 (A, B, C, E, F열 기준)
+const rowsToProcess = [];
+// 3행부터 데이터가 있는 마지막 행까지 수집
+for (let i = startRow; i <= lastRow; i++) {
+  const row = verifySheet.getRow(i);
+  rowsToProcess.push({
+    rowNum: i,
+    // 비교 키 생성 (A, B, C, E, F열 값을 합쳐서 고유 키 생성)
+    key: ['A', 'B', 'C', 'E', 'F'].map(col => String(getCellValue(row.getCell(col))).trim()).join('|'),
+    // G열 데이터를 숫자로 변환 (합산용)
+    gValue: Number(getCellValue(row.getCell('G'))) || 0,
+    // 전체 행 데이터 복사 (나중에 다시 그리기용)
+    rowData: row.values 
+  });
+}
+
+// 키를 기준으로 데이터 합산
+const aggregated = {};
+rowsToProcess.forEach(item => {
+  if (!aggregated[item.key]) {
+    aggregated[item.key] = { ...item };
+  } else {
+    aggregated[item.key].gValue += item.gValue;
+  }
+});
+
+// 기존 시트 데이터 영역 초기화 (3행부터)
+for (let i = startRow; i <= verifySheet.rowCount; i++) {
+  verifySheet.getRow(i).values = [];
+  verifySheet.getRow(i).border = {};
+}
+
+// 합산된 데이터를 시트에 다시 작성
+const finalData = Object.values(aggregated);
+finalData.forEach((item, index) => {
+  const r = startRow + index;
+  verifySheet.getRow(r).values = item.rowData; // 기존 데이터 복원
+  verifySheet.getCell(`G${r}`).value = item.gValue; // 합산된 G열 값 입력
+
+  // 테두리 다시 적용 (A~J열까지)
+  for (let col = 1; col <= 10; col++) {
+    const cell = verifySheet.getRow(r).getCell(col);
+    cell.border = {
+      top: { style: 'thin' },
+      left: { style: 'thin' },
+      bottom: { style: 'thin' },
+      right: { style: 'thin' }
+    };
+  }
+});
+
+// 4️⃣ 행 정리: C열 데이터가 없거나 전체적으로 비어있는 행 제거
+    // 밑에서부터 위로 올라가며 지워야 행 인덱스가 꼬이지 않습니다.
+    const finalRowCount = verifySheet.rowCount;
+
+    for (let i = finalRowCount; i >= startRow; i--) {
+      const row = verifySheet.getRow(i);
+      const cValue = getCellValue(row.getCell('C')); // 상품명 컬럼
+
+      // 1. C열이 비어있는지 확인 (공백 제거 후 체크)
+      const isCEmpty = !cValue || String(cValue).trim() === '';
+
+      // 2. 해당 행에 데이터가 하나라도 있는지 확인 (A~M열 조사)
+      let hasAnyData = false;
+      for (let col = 1; col <= 13; col++) {
+        const val = getCellValue(row.getCell(col));
+        if (val && String(val).trim() !== '') {
+          hasAnyData = true;
+          break;
+        }
+      }
+
+      // 조건: C열이 비어있는데 다른 데이터가 있거나, 아예 데이터가 없는 행 삭제
+      if (isCEmpty || !hasAnyData) {
+        // ExcelJS에서 spliceRows(시작행, 개수)는 실제 행을 밀어올리며 삭제합니다.
+        verifySheet.spliceRows(i, 1);
       }
     }
 
