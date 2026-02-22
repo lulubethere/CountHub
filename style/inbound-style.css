@@ -129,6 +129,11 @@
   color: #333;
   margin-bottom: 6px;
 }
+.field-label-must {
+  font-size: 13px;
+  color: rgb(255, 0, 0);
+  margin-bottom: 6px;
+}
 .field-control select
 {
   width: 100%;
@@ -273,4 +278,14 @@
     height: 40px;
     font-size: 14px;
   }
+}
+
+/* toast button */
+/* 닫기 버튼 색상 변경 */
+.toastify .toast-close {
+  color: #000 !important;   /* 원하는 색상 코드 */
+}
+
+.grid-row input {
+  text-transform: uppercase;
 }

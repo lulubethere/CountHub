@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
   <title>CountHub - 입고</title>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   <link rel="stylesheet" href="../style/common-style.css">
   <link rel="stylesheet" href="../style/inbound-style.css">
   <link rel="stylesheet" href="../style/main-style.css">
 </head>
+
 <body>
   <div class="screen">
     <div id="app-header"></div>
@@ -16,14 +20,14 @@
       </div>
     </div>
     <div class="inbound-content">
-          <div class="excel-upload">
-          <label class="excel-label">입고예정엑셀파일(패킹리스트) : </label>
-          <div class="excel-controls">
-            <button id="btn-select-excel" class="excel-btn">
-              엑셀파일 .xlsx, .xls 양식만 가능
-            </button>
-          </div>
+      <div class="excel-upload">
+        <label class="excel-label">입고예정엑셀파일(패킹리스트) : </label>
+        <div class="excel-controls">
+          <button id="btn-select-excel" class="excel-btn">
+            엑셀파일 .xlsx, .xls 양식만 가능
+          </button>
         </div>
+      </div>
       <div class="inbound-form">
         <div class="grid-row">
           <div class="field">
@@ -61,15 +65,9 @@
           <div class="field">
             <div class="field-label">입고예정일</div>
             <div class="field-control">
-              <input 
-                id="dateInput"
-                type="text"
-                inputmode="numeric"
-                placeholder="YYYYMMDD"
-                maxlength="8"
-              />
+              <input id="dateInput" type="text" inputmode="numeric" placeholder="YYYYMMDD" maxlength="8" />
               <div id="dateError" style="color:red; font-size:12px; display:none; margin-top:4px;">
-               존재하지 않는 날짜입니다.
+                존재하지 않는 날짜입니다.
               </div>
             </div>
           </div>
@@ -77,33 +75,33 @@
 
         <div class="grid-row">
           <div class="field">
-            <div class="field-label">SKU</div>
+            <div class="field-label-must">SKU *</div>
             <div class="field-control">
-              <input id="sku" type="text" value="">
+              <input id="sku" type="text" value="" maxlength="1">
             </div>
           </div>
           <div class="field">
             <div class="field-label">상품명</div>
             <div class="field-control">
-              <input id="product-name" type="text" value="">
+              <input id="product-name" type="text" value="" maxlength="1">
             </div>
           </div>
           <div class="field">
             <div class="field-label">유통기한</div>
             <div class="field-control">
-              <input id="expiry" type="text" value="">
+              <input id="expiry" type="text" value="" maxlength="1">
             </div>
           </div>
           <div class="field">
             <div class="field-label">LOT</div>
             <div class="field-control">
-              <input id="lot" type="text" value="">
+              <input id="lot" type="text" value="" maxlength="1">
             </div>
           </div>
           <div class="field">
-            <div class="field-label">입고예정수량</div>
+            <div class="field-label-must">입고예정수량 *</div>
             <div class="field-control">
-              <input id="expected-qty" type="text" value="">
+              <input id="expected-qty" type="text" value="" maxlength="1">
             </div>
           </div>
         </div>
@@ -117,7 +115,7 @@
           <div class="excel-upload">
             <div class="excel-controls">
               <button id="btn-select-inbound-file" class="excel-btn">
-                 입고파일양식 엑셀첨부 (.xlsx .xls)
+                입고파일양식 엑셀첨부 (.xlsx .xls)
               </button>
               <span id="inbound-template-badge" class="template-badge" style="display: none;">기본양식 적용됨</span>
             </div>
@@ -125,7 +123,7 @@
           <div class="excel-upload">
             <div class="excel-controls">
               <button id="btn-select-verify-file" class="excel-btn">
-                 입고검수파일양식 엑셀첨부 (.xlsx .xls)
+                입고검수파일양식 엑셀첨부 (.xlsx .xls)
               </button>
               <span id="verify-template-badge" class="template-badge" style="display: none;">기본양식 적용됨</span>
             </div>
@@ -138,4 +136,5 @@
   <script src="../js/renderer-inbound.js"></script>
 
 </body>
+
 </html>

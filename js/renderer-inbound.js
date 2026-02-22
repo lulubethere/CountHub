@@ -1,5 +1,6 @@
 (function () {
-  const { ipcRenderer } = require('electron');
+  const { ipcRenderer } = require("electron");
+  const Toastify = require("toastify-js");
 
   // 1. 로그인 체크 (즉시 실행)
   let user;
@@ -199,10 +200,42 @@
     const btnVerify = document.getElementById("btn-verify");
     btnVerify?.addEventListener("click", async function () {
       if (!sellerExcelPath) {
-        alert("셀러 엑셀 파일을 선택해주세요.");
-        return;
+        Toastify({
+          text: "셀러 엑셀 파일을 선택해주세요.",
+          duration: 3000,
+          gravity: "bottom",
+          position: "right",
+          close: true,
+          style: {
+            background: "#ffffff",
+            color: "#333",
+            borderLeft: "5px solid #000",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+          },
+        }).showToast();
       }
 
+
+      const allInputIds = [
+        "sku",
+        "product-name",
+        "expiry",
+        "lot",
+        "expected-qty",
+      ];
+
+      // 3. 모든 ID에 대해 이벤트 리스너 등록
+      allInputIds.forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) {
+          el.addEventListener("input", (e) => {
+            e.target.value = e.target.value.toUpperCase().slice(0, 1);
+          });
+        }
+      });
+      // 4. (참고) 데이터 수집 시점의 코드
+      // 이미 위에서 입력을 제한했으므로, 여기서는 정제된 값만 읽어오게 됩니다.
       const columnMap = {
         sku: document.getElementById("sku")?.value.trim(),
         productName: document.getElementById("product-name")?.value.trim(),
@@ -212,7 +245,20 @@
       };
 
       if (!columnMap.sku || !columnMap.qty) {
-        alert("SKU와 수량 컬럼(알파벳)을 확인해주세요.");
+        Toastify({
+          text: "SKU와 수량 컬럼(알파벳)을 확인해주세요.",
+          duration: 3000,
+          gravity: "bottom",
+          position: "right",
+          close: true,
+          style: {
+            background: "#ffffff",
+            color: "#333",
+            borderLeft: "5px solid #000",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+          },
+        }).showToast();
         return;
       }
 
@@ -232,9 +278,20 @@
       btnVerify.textContent = "입고검수파일 작업";
 
       if (result.ok) {
-        alert("완료되었습니다!\n저장경로: " + result.path);
-      } else {
-        alert("오류: " + result.error);
+        Toastify({
+          text: "완료되었습니다!\n저장경로: " + result.path,
+          duration: 3000,
+          gravity: "bottom",
+          position: "right",
+          close: true,
+          style: {
+            background: "#ffffff",
+            color: "#333",
+            borderLeft: "5px solid #000",
+            borderRadius: "8px",
+            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+          },
+        }).showToast();
       }
     });
   });
