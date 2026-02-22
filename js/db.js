@@ -1,8 +1,23 @@
-require('dotenv').config();
+const { app } = require('electron');
+const dotenv = require('dotenv');
+const path = require('path');
 const { Client } = require('pg');
 
-// Supabase PostgreSQL 연결 설정
-// 환경변수는 .env 파일에서 로드됩니다
+// 1. .env 파일 경로 설정
+// 앱이 패키징(빌드) 되었으면 resources 폴더에서 찾고, 아니면 현재 루트에서 찾습니다.
+const isPackaged = app ? app.isPackaged : false; 
+const envPath = isPackaged
+  ? path.join(process.resourcesPath, '.env')
+  : path.resolve(process.cwd(), '.env');
+
+// 2. 설정된 경로로 dotenv 로드
+dotenv.config({ path: envPath });
+
+// 디버깅용 (빌드 후 터미널이나 로그에서 확인 가능)
+console.log('Environment loaded from:', envPath);
+console.log('DB Host Check:', process.env.SUPABASE_DB_HOST ? 'Loaded' : 'Not Found');
+
+// 3. Supabase PostgreSQL 연결 설정
 const dbConfig = {
   host: process.env.SUPABASE_DB_HOST,
   port: parseInt(process.env.SUPABASE_DB_PORT || '5432', 10),
