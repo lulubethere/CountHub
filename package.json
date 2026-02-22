@@ -29,6 +29,13 @@
     "productName": "CountHub",
     "win": {
       "target": "nsis"
-    }
+    },
+    "files": [
+      "**/*",
+      ".env"
+    ],
+    "extraResources": [
+      ".env"
+    ]
   }
 }
