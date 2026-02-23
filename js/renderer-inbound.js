@@ -183,9 +183,15 @@
     // --- [1. 입고검수파일 작업 버튼 (기존 기능)] ---
     const btnVerify = document.getElementById("btn-verify");
     btnVerify?.addEventListener("click", async function () {
-      if (!sellerExcelPath) { showToast("입고예정엑셀파일(패킹리스트)을 먼저 선택해주세요.", true); return; }
+      if (!sellerExcelPath) {
+        showToast("입고예정엑셀파일(패킹리스트)을 먼저 선택해주세요.", true);
+        return;
+      }
       const columnMap = getColumnMap();
-      if (!columnMap.sku || !columnMap.qty) { showToast("SKU와 수량 컬럼을 확인해주세요.", true); return; }
+      if (!columnMap.productName || !columnMap.qty) {
+        showToast("상품명과 입고예정수량 열을 확인해주세요.", true);
+        return;
+      }
 
       btnVerify.disabled = true;
       btnVerify.textContent = "처리 중...";
@@ -199,7 +205,11 @@
       });
       btnVerify.disabled = false;
       btnVerify.textContent = "입고검수파일 작업";
-      if (result.ok) showToast("검수 완료!\n저장경로: " + result.path);
+      if (result.ok) {
+        showToast("검수 완료!\n저장경로: " + result.path);
+      } else {
+        showToast(result.error, true);
+      }
     });
 
     // --- [2. 입고파일 작업 버튼 (신규 기능 추가)] ---
@@ -212,8 +222,8 @@
       }
 
       const columnMap = getColumnMap();
-      if (!columnMap.sku || !columnMap.qty) {
-        showToast("SKU와 수량 컬럼(알파벳)을 확인해주세요.", true);
+      if (!columnMap.productName || !columnMap.qty) {
+        showToast("상품명과 입고예정수량 열을 확인해주세요.", true);
         return;
       }
 
