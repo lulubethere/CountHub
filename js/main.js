@@ -131,6 +131,7 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
       sellerPath,
       sellerName,
       shopName,
+      releaseCenter,
       dateValue,
       columnMap,
     } = payload;
@@ -202,6 +203,7 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
         if (val.includes("셀러")) commonCells.seller = cell.address;
         if (val.includes("쇼핑몰")) commonCells.shop = cell.address;
         if (val.includes("입고예정일")) commonCells.date = cell.address;
+        if (val.includes("출고센터")) commonCells.releaseCenter = cell.address;
       });
       if (targetCols.name && startDataRow === 3) startDataRow = rowNum + 1;
     });
@@ -245,14 +247,28 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
     // [중요] aggregated 객체를 배열로 변환
     const finalRows = Object.values(aggregated);
 
+// 2️⃣ 데이터 정제 함수
+    const checkInput = (val) => {
+      // '선택'이거나 공백이면 빈값 처리
+      if (!val || String(val).trim() === "" || String(val).trim() === "선택") return "";
+      return String(val).trim();
+    };
+
+const finalSeller = checkInput(sellerName);
+    const finalShop = checkInput(shopName);
+    const finalRelease = checkInput(releaseCenter); // UI 입력값
+    const finalDate = (dateValue && dateValue.trim() !== "") ? dateValue : "";
+
     // 4️⃣ 양식 시트 작업
     // (1) 공통 정보 입력
-    if (commonCells.seller)
-      verifySheet.getCell(commonCells.seller).value = `${sellerName || ""}`;
-    if (commonCells.shop)
-      verifySheet.getCell(commonCells.shop).value = `${shopName || ""}`;
-    if (commonCells.date)
-      verifySheet.getCell(commonCells.date).value = `${dateValue || ""}`;
+if (commonCells.seller) verifySheet.getCell(commonCells.seller).value = finalSeller;
+    if (commonCells.shop) verifySheet.getCell(commonCells.shop).value = finalShop;
+    if (commonCells.date) verifySheet.getCell(commonCells.date).value = finalDate;
+    
+    // [핵심] UI에서 입력한 '출고센터' 명칭을 엑셀의 '출고센터' 셀 위치에 입력
+    if (commonCells.releaseCenter) {
+      verifySheet.getCell(commonCells.releaseCenter).value = finalRelease;
+    }
 
     // (2) 기존 데이터 영역 초기화 (메모리 효율적 방식)
     const currentLastRow = verifySheet.actualRowCount;
@@ -307,25 +323,21 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
     const today = new Date();
     const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-// 2. '선택' 및 공백 체크 함수 (유효하지 않으면 null 반환)
-    const getValidValue = (val) => {
-      if (!val || String(val).trim() === "" || String(val).trim() === "선택") {
-        return null;
-      }
-      return String(val).trim().replace(/[\/\\:*?"<>|]/g, "_"); // 파일명 안전 처리 포함
+// 2. '입력값'이 있을때만 체크 함수 (유효하지 않으면 null 반환)
+const getSafe = (val) => {
+      const v = checkInput(val);
+      return v ? v.replace(/[\/\\:*?"<>|]/g, "_") : null;
     };
 
 // 3. 각 항목 유효성 검사
     const safeDate = (dateValue && dateValue.trim() !== "") ? dateValue.replace(/[\/\\:*?"<>|]/g, "-") : formattedToday;
-    const safeSeller = getValidValue(sellerName);
-    const safeShop = getValidValue(shopName);
+    const safeSeller = getSafe(sellerName);
+    const safeShop = getSafe(shopName);
 
-    // 4. [핵심] 존재하지 않는 값은 제외하고 공백으로 이어붙이기
-    // safeDate는 항상 존재(오늘 날짜라도), 나머지는 있을 때만 배열에 포함
-    const nameParts = [safeDate, safeSeller, safeShop, "입고검수지"].filter(part => part !== null);
+// 예: "마녀공장 Qoo10 입고검수지 2026-02-25 용인센터 .xlsx"
+    const nameParts = [getSafe(sellerName), getSafe(shopName), "입고검수지", safeDate, getSafe(releaseCenter)]
+      .filter(p => p !== null);
     
-    // 결과 예시: ["2026-02-25", "마녀공장", "Qoo10", "입고검수지"].join(" ") 
-    // -> "2026-02-25 마녀공장 Qoo10 입고검수지.xlsx"
     const defaultFileName = `${nameParts.join(" ")}.xlsx`;
 
     const { filePath, canceled } = await dialog.showSaveDialog({
@@ -405,17 +417,17 @@ ipcMain.handle('process-inbound-file', async (_, payload) => {
     const safeDate = (centerData.dateValue && centerData.dateValue.trim() !== "") 
       ? centerData.dateValue.replace(/[\/\\:*?"<>|]/g, "-") 
       : formattedToday;
-    const safeRelease = getValidValue(centerData.releaseCenter);
-    const safeShop = getValidValue(centerData.shopName);
+const safeSeller = getValidValue(centerData.sellerName || centerData.seller); 
+const safeShop = getValidValue(centerData.shopName);
 
     // 3️⃣ 양식 헤더 위치 및 끝 열 찾기
     const headerRow = targetSheet.getRow(1);
-    let colMap = { release: null, inbound: null, type: null, date: null, shop: null };
+    let colMap = { seller: null, inbound: null, type: null, date: null, shop: null };
     let lastHeaderCol = 11; // 기본값 K열
 
     headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
       const val = String(getCellValue(cell)).replace(/\s+/g, '');
-      if (val.includes('셀러')) colMap.release = colNumber;
+      if (val.includes('셀러')) colMap.seller = colNumber;
       if (val.includes('입고센터')) colMap.inbound = colNumber;
       if (val.includes('상품구분')) colMap.type = colNumber;
       if (val.includes('예정일')) colMap.date = colNumber;
@@ -445,7 +457,7 @@ ipcMain.handle('process-inbound-file', async (_, payload) => {
       tRow.getCell('I').value = getCellValue(sRow.getCell(columnMap.qty));
 
       // 부가 정보 매핑 (찾은 헤더 기준)
-      if (colMap.release) tRow.getCell(colMap.release).value = checkSelect(centerData.releaseCenter);
+      if (colMap.seller) tRow.getCell(colMap.seller).value = checkSelect(centerData.seller);
       if (colMap.inbound) tRow.getCell(colMap.inbound).value = checkSelect(centerData.inboundCenter);
       if (colMap.type) tRow.getCell(colMap.type).value = checkSelect(centerData.productType);
       if (colMap.shop) tRow.getCell(colMap.shop).value = checkSelect(centerData.shopName);
@@ -469,7 +481,7 @@ ipcMain.handle('process-inbound-file', async (_, payload) => {
     }
 
     // 6️⃣ 저장 대화상자 (요청하신 파일명 형식 적용)
-    const nameParts = [safeDate, safeRelease, safeShop, "입고작업"].filter(part => part !== null);
+const nameParts = [safeSeller, safeShop, "입고검수지", safeDate].filter(p => p !== null);
     const defaultFileName = `${nameParts.join(" ")}.xlsx`;
 
     const { filePath, canceled } = await dialog.showSaveDialog({
