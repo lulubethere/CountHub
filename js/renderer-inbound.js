@@ -36,16 +36,24 @@
           btnSelectVerify.classList.add('has-default');
           btnSelectVerify.textContent = `입고검수파일양식 엑셀첨부 (.xlsx .xls)`;
           badgeVerify.textContent = '기본양식 적용됨';
-          badgeVerify.style.display = 'inline-block';
-          badgeVerify.classList.remove('no-template');
+if (checkVerify.ok) {
+    badgeVerify.classList.add('visible'); // CSS의 visibility: visible 적용
+    badgeVerify.style.display = 'block';   // 혹시 모르니 display도 block 유지
+} else {
+    badgeVerify.classList.remove('visible');
+}          badgeVerify.classList.remove('no-template');
         }
       } else {
         console.warn("⚠️ 입고검수파일 양식 없음:", checkVerify.error);
         if (badgeVerify) {
           badgeVerify.textContent = '기본양식 없음';
           badgeVerify.classList.add('no-template');
-          badgeVerify.style.display = 'inline-block';
-        }
+if (checkVerify.ok) {
+    badgeVerify.classList.add('visible'); // CSS의 visibility: visible 적용
+    badgeVerify.style.display = 'block';   // 혹시 모르니 display도 block 유지
+} else {
+    badgeVerify.classList.remove('visible');
+}        }
       }
     } catch (err) {
       console.error("입고검수파일 양식 체크 에러:", err);
@@ -66,16 +74,24 @@
           btnSelectInbound.classList.add('has-default');
           btnSelectInbound.textContent = `입고파일양식 엑셀첨부 (.xlsx .xls)`;
           badgeInbound.textContent = '기본양식 적용됨';
-          badgeInbound.style.display = 'inline-block';
-          badgeInbound.classList.remove('no-template');
+if (checkInbound.ok) {
+    badgeInbound.classList.add('visible'); // CSS의 visibility: visible 적용
+    badgeInbound.style.display = 'block';   // 혹시 모르니 display도 block 유지
+} else {
+    badgeInbound.classList.remove('visible');
+}          badgeInbound.classList.remove('no-template');
         }
       } else {
         console.warn("⚠️ 입고파일 양식 없음:", checkInbound.error);
         if (badgeInbound) {
           badgeInbound.textContent = '기본양식 없음';
           badgeInbound.classList.add('no-template');
-          badgeInbound.style.display = 'inline-block';
-        }
+if (checkVerify.ok) {
+    badgeVerify.classList.add('visible'); // CSS의 visibility: visible 적용
+    badgeVerify.style.display = 'block';   // 혹시 모르니 display도 block 유지
+} else {
+    badgeVerify.classList.remove('visible');
+}        }
       }
     } catch (err) {
       console.error("입고파일 양식 체크 에러:", err);
@@ -91,6 +107,7 @@
     const selCenter = document.getElementById("sel-center");
     const selShop = document.getElementById("sel-shop");
     const dateInput = document.getElementById("dateInput");
+    const inputReleaseCenter = document.getElementById("input-release-center");
 
     // 컬럼 입력 자동 대문자 변환 (모든 관련 인풋에 미리 적용)
     const allInputIds = ["sku", "product-name", "expiry", "lot", "expected-qty"];
@@ -195,11 +212,13 @@
 
       btnVerify.disabled = true;
       btnVerify.textContent = "처리 중...";
+
       const result = await ipcRenderer.invoke("process-verify-file", {
         verifyPath: verifyExcelPath,
         sellerPath: sellerExcelPath,
         sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "",
         shopName: selShop?.options[selShop.selectedIndex]?.text || "",
+        releaseCenter: inputReleaseCenter?.value || "",
         dateValue: dateInput?.value || "",
         columnMap,
       });
@@ -235,7 +254,7 @@
           templatePath: inboundExcelPath, // 사용자가 선택한 양식 (없으면 메인에서 DB 양식 로드)
           sellerPath: sellerExcelPath,
           centerData: {
-            releaseCenter: selSeller?.options[selSeller.selectedIndex]?.text || "선택",
+            sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "",
             inboundCenter: selCenter?.options[selCenter.selectedIndex]?.text || "선택",
             productType: selType?.options[selType.selectedIndex]?.text || "선택",
             shopName: selShop?.options[selShop.selectedIndex]?.text || "선택",
