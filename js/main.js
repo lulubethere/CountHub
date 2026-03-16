@@ -135,6 +135,7 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
       dateValue,
       columnMap,
     } = payload;
+
     const verifyWorkbook = new ExcelJS.Workbook();
     const sellerWorkbook = new ExcelJS.Workbook();
 
@@ -169,8 +170,8 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
       const templateData = await db.getInboundCheckTemplate();
       await verifyWorkbook.xlsx.load(templateData.buffer);
     }
-    await loadWorkbook(sellerWorkbook, sellerPath);
 
+    await loadWorkbook(sellerWorkbook, sellerPath);
     const verifySheet = verifyWorkbook.worksheets[0];
     const sellerSheet = sellerWorkbook.worksheets[0];
 
@@ -184,6 +185,7 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
       expiry: null,
       qty: null,
     };
+
     let commonCells = { seller: null, shop: null, date: null };
     let startDataRow = 3;
 
@@ -192,6 +194,7 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
         const val = String(getCellValue(cell))
           .toUpperCase()
           .replace(/\s+/g, "");
+
         if (val.includes("PLT")) targetCols.plt = cell.col;
         if (val.includes("SKU")) targetCols.sku = cell.col;
         if (val.includes("상품명")) targetCols.name = cell.col;
@@ -199,7 +202,6 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
         if (val.includes("LOT")) targetCols.lot = cell.col;
         if (val.includes("유통기한")) targetCols.expiry = cell.col;
         if (val.includes("수량")) targetCols.qty = cell.col;
-
         if (val.includes("셀러")) commonCells.seller = cell.address;
         if (val.includes("쇼핑몰")) commonCells.shop = cell.address;
         if (val.includes("입고예정일")) commonCells.date = cell.address;
@@ -209,69 +211,92 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
     });
 
     // 3️⃣ 셀러 파일에서 추출과 동시에 합산 (메모리 최적화)
+
     const aggregated = {};
     let sellerBarcodeCol = null;
     let sellerPltCol = null;
 
     // 셀러 파일 헤더 탐색
+
     sellerSheet.getRow(1).eachCell((cell) => {
       const val = String(getCellValue(cell)).replace(/\s+/g, "");
+
       if (val.includes("바코드")) sellerBarcodeCol = cell.col;
-      if (val.includes("PLT")) sellerPltCol = cell.col;
+      if (val.includes("PLT") || val.includes("plt")) sellerPltCol = cell.col;
     });
 
-    for (let i = 2; i <= sellerSheet.rowCount; i++) {
-      const row = sellerSheet.getRow(i);
-      const name = getCellValue(row.getCell(columnMap.productName));
-      if (!name || String(name).trim() === "") continue;
+for (let i = 2; i <= sellerSheet.rowCount; i++) {
+  const row = sellerSheet.getRow(i);
+  const name = getCellValue(row.getCell(columnMap.productName));
 
-      const plt = sellerPltCol ? getCellValue(row.getCell(sellerPltCol)) : "";
-      const sku = getCellValue(row.getCell(columnMap.sku));
-      const lot = getCellValue(row.getCell(columnMap.lot));
-      const expiry = getCellValue(row.getCell(columnMap.expiry));
-      const qty = Number(getCellValue(row.getCell(columnMap.qty))) || 0;
-      let barcode = sellerBarcodeCol
-        ? String(getCellValue(row.getCell(sellerBarcodeCol)))
-        : "";
-      if (barcode.length > 4) barcode = barcode.slice(-4);
+  if (!name || String(name).trim() === "") continue;
 
-      // 합산 키 (PLT, SKU, 상품명, LOT, 유통기한 기준)
-      const key = `${plt}|${sku}|${name}|${lot}|${expiry}`;
-      if (!aggregated[key]) {
-        aggregated[key] = { plt, sku, name, barcode, lot, expiry, qty };
-      } else {
-        aggregated[key].qty += qty;
-      }
-    }
+  // 값이 없을 경우를 대비해 || "" (또는 빈 문자열) 처리를 강화합니다.
+  const plt = sellerPltCol ? getCellValue(row.getCell(sellerPltCol)) : "";
+  
+  // columnMap에 해당 키가 없거나 셀 값이 없을 경우 빈 문자열 반환
+  const sku = columnMap.sku ? (getCellValue(row.getCell(columnMap.sku)) || "") : "";
+  const lot = columnMap.lot ? (getCellValue(row.getCell(columnMap.lot)) || "") : "";
+  const expiry = columnMap.expiry ? (getCellValue(row.getCell(columnMap.expiry)) || "") : "";
+  
+  const qty = Number(getCellValue(row.getCell(columnMap.qty))) || 0;
+
+  let barcode = sellerBarcodeCol
+    ? String(getCellValue(row.getCell(sellerBarcodeCol)))
+    : "";
+
+  if (barcode.length > 4) barcode = barcode.slice(-4);
+
+  // ✅ 핵심: 값이 없어도 파이프(|) 기호는 유지되어 고유 키가 생성됩니다.
+  const key = `${plt}|${sku}|${name}|${lot}|${expiry}`;
+
+  if (!aggregated[key]) {
+    aggregated[key] = { plt, sku, name, barcode, lot, expiry, qty };
+  } else {
+    aggregated[key].qty += qty;
+  }
+}
 
     // [중요] aggregated 객체를 배열로 변환
     const finalRows = Object.values(aggregated);
 
-// 2️⃣ 데이터 정제 함수
+    // 2️⃣ 데이터 정제 함수
     const checkInput = (val) => {
       // '선택'이거나 공백이면 빈값 처리
-      if (!val || String(val).trim() === "" || String(val).trim() === "선택") return "";
+
+      if (!val || String(val).trim() === "" || String(val).trim() === "선택")
+        return "";
+
       return String(val).trim();
     };
 
-const finalSeller = checkInput(sellerName);
+    const finalSeller = checkInput(sellerName);
     const finalShop = checkInput(shopName);
     const finalRelease = checkInput(releaseCenter); // UI 입력값
-    const finalDate = (dateValue && dateValue.trim() !== "") ? dateValue : "";
+    const finalDate = dateValue && dateValue.trim() !== "" ? dateValue : "";
 
     // 4️⃣ 양식 시트 작업
+
     // (1) 공통 정보 입력
-if (commonCells.seller) verifySheet.getCell(commonCells.seller).value = finalSeller;
-    if (commonCells.shop) verifySheet.getCell(commonCells.shop).value = finalShop;
-    if (commonCells.date) verifySheet.getCell(commonCells.date).value = finalDate;
-    
+    if (commonCells.seller)
+      verifySheet.getCell(commonCells.seller).value = finalSeller;
+
+    if (commonCells.shop)
+      verifySheet.getCell(commonCells.shop).value = finalShop;
+
+    if (commonCells.date)
+      verifySheet.getCell(commonCells.date).value = finalDate;
+
     // [핵심] UI에서 입력한 '출고센터' 명칭을 엑셀의 '출고센터' 셀 위치에 입력
+
     if (commonCells.releaseCenter) {
       verifySheet.getCell(commonCells.releaseCenter).value = finalRelease;
     }
 
     // (2) 기존 데이터 영역 초기화 (메모리 효율적 방식)
+
     const currentLastRow = verifySheet.actualRowCount;
+
     for (
       let i = startDataRow;
       i <= Math.max(currentLastRow, startDataRow + 500);
@@ -287,25 +312,27 @@ if (commonCells.seller) verifySheet.getCell(commonCells.seller).value = finalSel
     // [추가] 헤더 행에서 마지막으로 데이터가 있는 열 찾기
     let lastHeaderCol = 1;
     const headerRow = verifySheet.getRow(startDataRow - 1); // 데이터 시작행 바로 위가 헤더행
+
     headerRow.eachCell({ includeEmpty: false }, (cell) => {
       if (cell.col > lastHeaderCol) lastHeaderCol = cell.col;
     });
 
     // (3) 데이터 입력 및 테두리 설정
+
     finalRows.forEach((data, idx) => {
       const r = startDataRow + idx;
       const row = verifySheet.getRow(r);
+
       row.height = 20;
 
-      // 데이터 입력 (기존 로직)
-      if (targetCols.plt) row.getCell(targetCols.plt).value = data.plt;
-      if (targetCols.sku) row.getCell(targetCols.sku).value = data.sku;
-      if (targetCols.name) row.getCell(targetCols.name).value = data.name;
-      if (targetCols.barcode)
-        row.getCell(targetCols.barcode).value = data.barcode;
-      if (targetCols.lot) row.getCell(targetCols.lot).value = data.lot;
-      if (targetCols.expiry) row.getCell(targetCols.expiry).value = data.expiry;
-      if (targetCols.qty) row.getCell(targetCols.qty).value = data.qty;
+// targetCols(양식의 헤더 위치)가 존재할 때만 값을 넣음
+  if (targetCols.plt) row.getCell(targetCols.plt).value = data.plt || "";
+  if (targetCols.sku) row.getCell(targetCols.sku).value = data.sku || "";
+  if (targetCols.name) row.getCell(targetCols.name).value = data.name || "";
+  if (targetCols.barcode) row.getCell(targetCols.barcode).value = data.barcode || "";
+  if (targetCols.lot) row.getCell(targetCols.lot).value = data.lot || "";
+  if (targetCols.expiry) row.getCell(targetCols.expiry).value = data.expiry || "";
+  if (targetCols.qty) row.getCell(targetCols.qty).value = data.qty || 0;
 
       // [수정된 테두리 로직] A열(1)부터 헤더 끝 열(lastHeaderCol)까지 전체 테두리
       for (let colIdx = 1; colIdx <= lastHeaderCol; colIdx++) {
@@ -323,48 +350,61 @@ if (commonCells.seller) verifySheet.getCell(commonCells.seller).value = finalSel
     const today = new Date();
     const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
 
-// 2. '입력값'이 있을때만 체크 함수 (유효하지 않으면 null 반환)
-const getSafe = (val) => {
+    // 2. '입력값'이 있을때만 체크 함수 (유효하지 않으면 null 반환)
+    const getSafe = (val) => {
       const v = checkInput(val);
       return v ? v.replace(/[\/\\:*?"<>|]/g, "_") : null;
     };
 
-// 3. 각 항목 유효성 검사
-    const safeDate = (dateValue && dateValue.trim() !== "") ? dateValue.replace(/[\/\\:*?"<>|]/g, "-") : formattedToday;
+    // 3. 각 항목 유효성 검사
+    const safeDate =
+      dateValue && dateValue.trim() !== ""
+        ? dateValue.replace(/[\/\\:*?"<>|]/g, "-")
+        : formattedToday;
+
     const safeSeller = getSafe(sellerName);
     const safeShop = getSafe(shopName);
 
-// 예: "마녀공장 Qoo10 입고검수지 2026-02-25 용인센터 .xlsx"
-    const nameParts = [getSafe(sellerName), getSafe(shopName), "입고검수지", safeDate, getSafe(releaseCenter)]
-      .filter(p => p !== null);
-    
-    const defaultFileName = `${nameParts.join(" ")}.xlsx`;
+    // 예: "마녀공장 Qoo10 입고검수지 2026-02-25 용인센터 .xlsx"
 
+    const nameParts = [
+      getSafe(sellerName),
+      getSafe(shopName),
+      "입고검수지",
+      safeDate,
+      getSafe(releaseCenter),
+    ].filter((p) => p !== null);
+
+    const defaultFileName = `${nameParts.join(" ")}.xlsx`;
     const { filePath, canceled } = await dialog.showSaveDialog({
       title: "검수 완료 파일 저장",
+
       defaultPath: path.join(app.getPath("downloads"), defaultFileName),
+
       filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
     });
 
     if (canceled || !filePath) {
       return { ok: false, error: "저장이 취소되었습니다." };
     }
+
     await verifyWorkbook.xlsx.writeFile(filePath);
+
     return { ok: true, path: filePath };
-    
   } catch (err) {
     console.error(err);
+
     return { ok: false, error: `작업 중 오류: ${err.message}` };
   }
 });
 
-ipcMain.handle('process-inbound-file', async (_, payload) => {
+ipcMain.handle("process-inbound-file", async (_, payload) => {
   try {
-    const { 
+    const {
       templatePath, // 사용자가 선택한 양식 경로 (없을 수 있음)
-      sellerPath, 
-      centerData, 
-      columnMap 
+      sellerPath,
+      centerData,
+      columnMap,
     } = payload;
 
     const templateWorkbook = new ExcelJS.Workbook();
@@ -375,7 +415,8 @@ ipcMain.handle('process-inbound-file', async (_, payload) => {
       if (!cell || cell.value === null || cell.value === undefined) return "";
       if (typeof cell.value === "object" && cell.value !== null) {
         if (cell.value.result !== undefined) return cell.value.result;
-        if (cell.value.richText) return cell.value.richText.map((t) => t.text).join("");
+        if (cell.value.richText)
+          return cell.value.richText.map((t) => t.text).join("");
       }
       return cell.value;
     };
@@ -384,14 +425,18 @@ ipcMain.handle('process-inbound-file', async (_, payload) => {
     const loadExcel = async (wb, p, isTemplate = false) => {
       if (!p && isTemplate) {
         const templateData = await db.getInboundExcelTemplate();
-        if (!templateData || !templateData.buffer) throw new Error("등록된 양식이 없습니다.");
+        if (!templateData || !templateData.buffer)
+          throw new Error("등록된 양식이 없습니다.");
         await wb.xlsx.load(Buffer.from(templateData.buffer));
         return;
       }
       const ext = path.extname(p).toLowerCase();
-      if (ext === '.xls') {
+      if (ext === ".xls") {
         const tempXls = XLSX.readFile(p);
-        const buffer = XLSX.write(tempXls, { type: 'buffer', bookType: 'xlsx' });
+        const buffer = XLSX.write(tempXls, {
+          type: "buffer",
+          bookType: "xlsx",
+        });
         await wb.xlsx.load(buffer);
       } else {
         await wb.xlsx.readFile(p);
@@ -407,100 +452,137 @@ ipcMain.handle('process-inbound-file', async (_, payload) => {
 
     // 2️⃣ "선택" 데이터 및 날짜 처리 로직 (파일명용)
     const today = new Date();
-    const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-    
+    const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
     const getValidValue = (val) => {
-      if (!val || String(val).trim() === "" || String(val).trim() === "선택") return null;
-      return String(val).trim().replace(/[\/\\:*?"<>|]/g, "_");
+      if (!val || String(val).trim() === "" || String(val).trim() === "선택")
+        return null;
+      return String(val)
+        .trim()
+        .replace(/[\/\\:*?"<>|]/g, "_");
     };
 
-    const safeDate = (centerData.dateValue && centerData.dateValue.trim() !== "") 
-      ? centerData.dateValue.replace(/[\/\\:*?"<>|]/g, "-") 
-      : formattedToday;
-const safeSeller = getValidValue(centerData.sellerName || centerData.seller); 
-const safeShop = getValidValue(centerData.shopName);
+    const safeDate =
+      centerData.dateValue && centerData.dateValue.trim() !== ""
+        ? centerData.dateValue.replace(/[\/\\:*?"<>|]/g, "-")
+        : formattedToday;
+    const safeSeller = getValidValue(
+      centerData.sellerName || centerData.seller,
+    );
+    const safeShop = getValidValue(centerData.shopName);
 
     // 3️⃣ 양식 헤더 위치 및 끝 열 찾기
     const headerRow = targetSheet.getRow(1);
-    let colMap = { seller: null, inbound: null, type: null, date: null, shop: null };
+    let colMap = {
+      seller: null,
+      inbound: null,
+      type: null,
+      date: null,
+      shop: null,
+    };
     let lastHeaderCol = 11; // 기본값 K열
 
     headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
-      const val = String(getCellValue(cell)).replace(/\s+/g, '');
-      if (val.includes('셀러')) colMap.seller = colNumber;
-      if (val.includes('입고센터')) colMap.inbound = colNumber;
-      if (val.includes('상품구분')) colMap.type = colNumber;
-      if (val.includes('예정일')) colMap.date = colNumber;
-      if (val.includes('쇼핑몰')) colMap.shop = colNumber;
-      
+      const val = String(getCellValue(cell)).replace(/\s+/g, "");
+      if (val.includes("셀러")) colMap.seller = colNumber;
+      if (val.includes("입고센터")) colMap.inbound = colNumber;
+      if (val.includes("상품구분")) colMap.type = colNumber;
+      if (val.includes("예정일")) colMap.date = colNumber;
+      if (val.includes("쇼핑몰")) colMap.shop = colNumber;
+
       if (colNumber > lastHeaderCol) lastHeaderCol = colNumber;
     });
 
     // 4️⃣ 데이터 추출 및 합산 (메모리 최적화: 추출과 동시에 매핑 준비)
     const startRow = 2;
-    const checkSelect = (val) => (val === '선택' ? '' : val);
+    const checkSelect = (val) => (val === "선택" ? "" : val);
 
     for (let i = 2; i <= sellerSheet.rowCount; i++) {
       const sRow = sellerSheet.getRow(i);
       const name = getCellValue(sRow.getCell(columnMap.productName));
-      
-      if (!name || String(name).trim() === '') continue;
+
+      if (!name || String(name).trim() === "") continue;
 
       const targetRowNum = startRow + (targetSheet.actualRowCount - 1);
       const tRow = targetSheet.getRow(targetRowNum);
 
-      // 핵심 데이터 매핑 (C, D, G, H, I 고정)
-      tRow.getCell('C').value = getCellValue(sRow.getCell(columnMap.sku));
-      tRow.getCell('D').value = name;
-      tRow.getCell('G').value = getCellValue(sRow.getCell(columnMap.expiry));
-      tRow.getCell('H').value = getCellValue(sRow.getCell(columnMap.lot));
-      tRow.getCell('I').value = getCellValue(sRow.getCell(columnMap.qty));
+      // 값이 있을 때만 타겟 셀에 넣어주는 함수
+      const safeMap = (targetCol, sourceColKey) => {
+        if (sourceColKey) {
+          const val = getCellValue(sRow.getCell(sourceColKey));
+          if (val !== undefined && val !== null && val !== "") {
+            tRow.getCell(targetCol).value = val;
+          }
+        }
+      };
+
+      // 사용 예시
+      safeMap("C", columnMap.sku);
+      safeMap("G", columnMap.expiry);
+      safeMap("H", columnMap.lot);
+      tRow.getCell("I").value = getCellValue(sRow.getCell(columnMap.qty));
+      tRow.getCell("D").value = name;
 
       // 부가 정보 매핑 (찾은 헤더 기준)
-      if (colMap.seller) tRow.getCell(colMap.seller).value = checkSelect(centerData.seller);
-      if (colMap.inbound) tRow.getCell(colMap.inbound).value = checkSelect(centerData.inboundCenter);
-      if (colMap.type) tRow.getCell(colMap.type).value = checkSelect(centerData.productType);
-      if (colMap.shop) tRow.getCell(colMap.shop).value = checkSelect(centerData.shopName);
-      if (colMap.date) tRow.getCell(colMap.date).value = centerData.dateValue || '';
+      if (colMap.seller)
+        tRow.getCell(colMap.seller).value = checkSelect(centerData.sellerName);
+      if (colMap.inbound)
+        tRow.getCell(colMap.inbound).value = checkSelect(
+          centerData.inboundCenter,
+        );
+      if (colMap.type)
+        tRow.getCell(colMap.type).value = checkSelect(centerData.productType);
+      if (colMap.shop)
+        tRow.getCell(colMap.shop).value = checkSelect(centerData.shopName);
+      if (colMap.date)
+        tRow.getCell(colMap.date).value = centerData.dateValue || "";
 
       // 테두리 적용 (A열부터 마지막 헤더열까지)
       for (let c = 1; c <= lastHeaderCol; c++) {
         tRow.getCell(c).border = {
-          top: { style: 'thin' }, left: { style: 'thin' },
-          bottom: { style: 'thin' }, right: { style: 'thin' }
+          top: { style: "thin" },
+          left: { style: "thin" },
+          bottom: { style: "thin" },
+          right: { style: "thin" },
         };
       }
     }
 
     // 5️⃣ 상품명(D열) 기준 역순 정리
     for (let i = targetSheet.rowCount; i >= startRow; i--) {
-      const nameVal = getCellValue(targetSheet.getRow(i).getCell('D'));
-      if (!nameVal || String(nameVal).trim() === '') {
+      const nameVal = getCellValue(targetSheet.getRow(i).getCell("D"));
+      if (!nameVal || String(nameVal).trim() === "") {
         targetSheet.spliceRows(i, 1);
       }
     }
 
     // 6️⃣ 저장 대화상자 (요청하신 파일명 형식 적용)
-const nameParts = [safeSeller, safeShop, "입고검수지", safeDate].filter(p => p !== null);
+    const nameParts = [safeSeller, safeShop, "입고파일", safeDate].filter(
+      (p) => p !== null,
+    );
     const defaultFileName = `${nameParts.join(" ")}.xlsx`;
 
     const { filePath, canceled } = await dialog.showSaveDialog({
-      title: '입고파일 저장',
-      defaultPath: path.join(app.getPath('downloads'), defaultFileName),
-      filters: [{ name: 'Excel Files', extensions: ['xlsx'] }]
+      title: "입고파일 저장",
+      defaultPath: path.join(app.getPath("downloads"), defaultFileName),
+      filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
     });
 
-    if (canceled || !filePath) return { ok: false, error: '저장이 취소되었습니다.' };
+    if (canceled || !filePath)
+      return { ok: false, error: "저장이 취소되었습니다." };
 
     await templateWorkbook.xlsx.writeFile(filePath);
-    
+
     // Workbook 인스턴스 해제 보조
-    templateWorkbook.worksheets.forEach(ws => templateWorkbook.removeWorksheet(ws.id));
-    sellerWorkbook.worksheets.forEach(ws => sellerWorkbook.removeWorksheet(ws.id));
+    templateWorkbook.worksheets.forEach((ws) =>
+      templateWorkbook.removeWorksheet(ws.id),
+    );
+    sellerWorkbook.worksheets.forEach((ws) =>
+      sellerWorkbook.removeWorksheet(ws.id),
+    );
 
     return { ok: true, path: filePath };
-
-  } catch (err){
+  } catch (err) {
     console.error("입고파일 작업 에러:", err);
     return { ok: false, error: err.message };
   }
