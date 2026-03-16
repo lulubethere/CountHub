@@ -254,7 +254,7 @@ if (checkVerify.ok) {
           templatePath: inboundExcelPath, // 사용자가 선택한 양식 (없으면 메인에서 DB 양식 로드)
           sellerPath: sellerExcelPath,
           centerData: {
-            sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "",
+            sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "선택",
             inboundCenter: selCenter?.options[selCenter.selectedIndex]?.text || "선택",
             productType: selType?.options[selType.selectedIndex]?.text || "선택",
             shopName: selShop?.options[selShop.selectedIndex]?.text || "선택",
