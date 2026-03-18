@@ -1,30 +1,33 @@
-const { app } = require('electron');
-const dotenv = require('dotenv');
-const path = require('path');
-const { Client } = require('pg');
+const { app } = require("electron");
+const dotenv = require("dotenv");
+const path = require("path");
+const { Client } = require("pg");
 
 // 1. .env 파일 경로 설정
 // 앱이 패키징(빌드) 되었으면 resources 폴더에서 찾고, 아니면 현재 루트에서 찾습니다.
-const isPackaged = app ? app.isPackaged : false; 
+const isPackaged = app ? app.isPackaged : false;
 const envPath = isPackaged
-  ? path.join(process.resourcesPath, '.env')
-  : path.resolve(process.cwd(), '.env');
+  ? path.join(process.resourcesPath, ".env")
+  : path.resolve(process.cwd(), ".env");
 
 // 2. 설정된 경로로 dotenv 로드
 dotenv.config({ path: envPath });
 
 // 디버깅용 (빌드 후 터미널이나 로그에서 확인 가능)
-console.log('Environment loaded from:', envPath);
-console.log('DB Host Check:', process.env.SUPABASE_DB_HOST ? 'Loaded' : 'Not Found');
+console.log("Environment loaded from:", envPath);
+console.log(
+  "DB Host Check:",
+  process.env.SUPABASE_DB_HOST ? "Loaded" : "Not Found",
+);
 
 // 3. Supabase PostgreSQL 연결 설정
 const dbConfig = {
   host: process.env.SUPABASE_DB_HOST,
-  port: parseInt(process.env.SUPABASE_DB_PORT || '5432', 10),
+  port: parseInt(process.env.SUPABASE_DB_PORT || "5432", 10),
   database: process.env.SUPABASE_DB_NAME,
   user: process.env.SUPABASE_DB_USER,
   password: process.env.SUPABASE_DB_PASSWORD,
-  ssl: { rejectUnauthorized: false }
+  ssl: { rejectUnauthorized: false },
 };
 
 let _client = null;
@@ -51,7 +54,7 @@ async function testConnection() {
   try {
     if (!_connected) await client.connect();
     _connected = true;
-    const res = await client.query('SELECT 1 as ok');
+    const res = await client.query("SELECT 1 as ok");
     await client.end();
     _client = null;
     _connected = false;
@@ -100,11 +103,11 @@ async function close() {
  * @returns {Promise<{ id: number, name: string } | null>}
  */
 async function findUserByName(name) {
-  const trimmed = (name || '').trim();
+  const trimmed = (name || "").trim();
   if (!trimmed) return null;
   const res = await query(
     'SELECT id, username FROM "Users" WHERE username = $1 LIMIT 1',
-    [trimmed]
+    [trimmed],
   );
   return res.rows[0] || null;
 }
@@ -116,7 +119,7 @@ async function findUserByName(name) {
 async function getSellers() {
   const res = await query(
     'SELECT code, name FROM "CodeMaster" WHERE parent_code = 100 ORDER BY sort_order',
-    []
+    [],
   );
   return res.rows || [];
 }
@@ -128,7 +131,7 @@ async function getSellers() {
 async function getProductTypes() {
   const res = await query(
     'SELECT code, name FROM "CodeMaster" WHERE parent_code = 200 ORDER BY sort_order',
-    []
+    [],
   );
   return res.rows || [];
 }
@@ -140,7 +143,7 @@ async function getProductTypes() {
 async function getCenters() {
   const res = await query(
     'SELECT code, name FROM "CodeMaster" WHERE parent_code = 300 ORDER BY sort_order',
-    []
+    [],
   );
   return res.rows || [];
 }
@@ -152,7 +155,7 @@ async function getCenters() {
 async function getShops() {
   const res = await query(
     'SELECT code, name FROM "CodeMaster" WHERE parent_code = 400 ORDER BY sort_order',
-    []
+    [],
   );
   return res.rows || [];
 }
@@ -168,7 +171,7 @@ async function getSellerColumns(sellerCode) {
      FROM "SellerColumn" AS A
      INNER JOIN "CodeMaster" AS B ON A.column_code = B.code
      WHERE A.seller_code = $1`,
-    [sellerCode]
+    [sellerCode],
   );
   return res.rows || [];
 }
@@ -179,15 +182,15 @@ async function getInboundCheckTemplate() {
   try {
     const res = await query(
       'SELECT excelfile, description FROM "ExcelFiles" WHERE id = 1',
-      []
+      [],
     );
 
     if (res.rows && res.rows.length > 0) {
       const fileData = res.rows[0].excelfile;
-      
+
       return {
         buffer: fileData,
-        filename: res.rows[0].description
+        filename: res.rows[0].description,
       };
     }
     return null;
@@ -202,15 +205,15 @@ async function getInboundExcelTemplate() {
   try {
     const res = await query(
       'SELECT excelfile, description FROM "ExcelFiles" WHERE id = 2',
-      []
+      [],
     );
 
     if (res.rows && res.rows.length > 0) {
       const fileData = res.rows[0].excelfile;
-      
+
       return {
         buffer: fileData,
-        filename: res.rows[0].description
+        filename: res.rows[0].description,
       };
     }
     return null;

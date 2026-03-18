@@ -139,6 +139,10 @@ if (checkVerify.ok) {
     // 셀러 변경 시 자동 바인딩 로직 (기존 유지)
     selSeller?.addEventListener('change', async function () {
       const sellerCode = this.value.trim();
+      if (sellerCode) {
+        if (selCenter) selCenter.selectedIndex = 1;
+        if (selType) selType.selectedIndex = 1;
+      }
       const nameToFieldId = { 'SKU': 'sku', '상품명': 'product-name', '유통기한': 'expiry', '로트': 'lot', '수량': 'expected-qty' };
       Object.values(nameToFieldId).forEach(id => { const input = document.getElementById(id); if (input) input.value = ''; });
       if (!sellerCode) return;
