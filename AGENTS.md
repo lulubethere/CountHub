@@ -18,6 +18,7 @@ Use the npm scripts defined in `package.json`:
 - Indentation and style should follow existing files in `html/`, `js/`, and `style/`.
 - Naming patterns are page-based: `renderer-*.js`, `*-style.css`, and numbered HTML pages.
 - A formatter is configured for this repo; run it before committing and keep changes consistent with nearby code.
+- When creating or modifying files, always save them as UTF-8 to prevent Korean text from breaking.
 
 ## Testing Guidelines
 There is no test framework configured in the repo. If you add tests, document:

@@ -493,8 +493,50 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
       if (colNumber > lastHeaderCol) lastHeaderCol = colNumber;
     });
 
+    // [추가] 입고파일 양식 내 sku/expiry/lot/qty/name 헤더 위치 찾기
+    const inboundCols = {
+      sku: null,
+      expiry: null,
+      lot: null,
+      qty: null,
+      name: null,
+    };
+    let maxHeaderRow = 1;
+
+    targetSheet.eachRow((row, rowNum) => {
+      row.eachCell((cell) => {
+        const raw = String(getCellValue(cell)).trim();
+        if (!raw) return;
+
+        const noSpace = raw.replace(/\s+/g, "");
+
+        if (!inboundCols.sku && noSpace.includes("SKU")) {
+          inboundCols.sku = cell.col;
+          maxHeaderRow = Math.max(maxHeaderRow, rowNum);
+        }
+        if (!inboundCols.expiry && noSpace.includes("유통기한")) {
+          inboundCols.expiry = cell.col;
+          maxHeaderRow = Math.max(maxHeaderRow, rowNum);
+        }
+        if (!inboundCols.lot && noSpace.includes("LOT")) {
+          inboundCols.lot = cell.col;
+          maxHeaderRow = Math.max(maxHeaderRow, rowNum);
+        }
+        if (!inboundCols.qty && noSpace.includes("수량")) {
+          inboundCols.qty = cell.col;
+          maxHeaderRow = Math.max(maxHeaderRow, rowNum);
+        }
+        if (!inboundCols.name && noSpace.includes("상품명")) {
+          inboundCols.name = cell.col;
+          maxHeaderRow = Math.max(maxHeaderRow, rowNum);
+        }
+      });
+    });
+
+    const dataStartRow = maxHeaderRow + 1;
+
     // 4️⃣ 데이터 추출 및 합산 (메모리 최적화: 추출과 동시에 매핑 준비)
-    const startRow = 2;
+    const startRow = dataStartRow;
     const checkSelect = (val) => (val === "선택" ? "" : val);
 
     for (let i = 2; i <= sellerSheet.rowCount; i++) {
@@ -503,7 +545,7 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
 
       if (!name || String(name).trim() === "") continue;
 
-      const targetRowNum = startRow + (targetSheet.actualRowCount - 1);
+      const targetRowNum = Math.max(startRow, targetSheet.actualRowCount + 1);
       const tRow = targetSheet.getRow(targetRowNum);
 
       // 값이 있을 때만 타겟 셀에 넣어주는 함수
@@ -517,11 +559,14 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
       };
 
       // 사용 예시
-      safeMap("C", columnMap.sku);
-      safeMap("G", columnMap.expiry);
-      safeMap("H", columnMap.lot);
-      tRow.getCell("I").value = getCellValue(sRow.getCell(columnMap.qty));
-      tRow.getCell("D").value = name;
+      if (inboundCols.sku) safeMap(inboundCols.sku, columnMap.sku);
+      if (inboundCols.expiry) safeMap(inboundCols.expiry, columnMap.expiry);
+      if (inboundCols.lot) safeMap(inboundCols.lot, columnMap.lot);
+      if (inboundCols.qty)
+        tRow.getCell(inboundCols.qty).value = getCellValue(
+          sRow.getCell(columnMap.qty),
+        );
+      if (inboundCols.name) tRow.getCell(inboundCols.name).value = name;
 
       // 부가 정보 매핑 (찾은 헤더 기준)
       if (colMap.seller)
@@ -548,9 +593,12 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
       }
     }
 
-    // 5️⃣ 상품명(D열) 기준 역순 정리
+    // 5️⃣ 상품명(헤더 기준) 역순 정리
+    const nameColForCleanup = inboundCols.name || 4;
     for (let i = targetSheet.rowCount; i >= startRow; i--) {
-      const nameVal = getCellValue(targetSheet.getRow(i).getCell("D"));
+      const nameVal = getCellValue(
+        targetSheet.getRow(i).getCell(nameColForCleanup),
+      );
       if (!nameVal || String(nameVal).trim() === "") {
         targetSheet.spliceRows(i, 1);
       }

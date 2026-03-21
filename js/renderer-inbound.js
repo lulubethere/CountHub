@@ -142,6 +142,7 @@ if (checkVerify.ok) {
       if (sellerCode) {
         if (selCenter) selCenter.selectedIndex = 1;
         if (selType) selType.selectedIndex = 1;
+        if (selShop) selShop.selectedIndex = 1;        
       }
       const nameToFieldId = { 'SKU': 'sku', '상품명': 'product-name', '유통기한': 'expiry', '로트': 'lot', '수량': 'expected-qty' };
       Object.values(nameToFieldId).forEach(id => { const input = document.getElementById(id); if (input) input.value = ''; });
