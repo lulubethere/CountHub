@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
 
 <head>
@@ -14,134 +14,210 @@
 <body>
   <div class="screen">
     <div id="app-header"></div>
-    <div class="inbound-header">
-      <div class="inbound-header-inner">
-        <h2 class="inbound-title">입고</h2>
-      </div>
-    </div>
-    <div class="inbound-content">
-      <div class="excel-upload" style="margin-bottom: 10px;">
-    <label class="excel-label">출고센터 : </label>
-    <div class="excel-controls">
-      <input id="input-release-center" type="text" placeholder="출고센터명을 입력하세요" 
-             style="width: 160px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-    </div>
-  </div>
-      <div class="excel-upload">
-        <label class="excel-label">입고예정엑셀파일(패킹리스트) : </label>
-        <div class="excel-controls">
-          <button id="btn-select-excel" class="excel-btn">
-            엑셀파일 .xlsx, .xls 양식만 가능
-          </button>
-        </div>
-      </div>
-      <div class="inbound-form">
-        <div class="grid-row">
-          <div class="field">
-            <div class="field-label">셀러</div>
-            <div class="field-control">
-              <select id="sel-seller">
-                <option value="">선택</option>
-              </select>
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-label">입고센터</div>
-            <div class="field-control">
-              <select id="sel-center">
-                <option value="">선택</option>
-              </select>
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-label">상품구분</div>
-            <div class="field-control">
-              <select id="sel-type">
-                <option value="">선택</option>
-              </select>
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-label">쇼핑몰</div>
-            <div class="field-control">
-              <select id="sel-shop">
-                <option value="">선택</option>
-              </select>
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-label">입고예정일</div>
-            <div class="field-control">
-              <input id="dateInput" type="text" inputmode="numeric" placeholder="YYYYMMDD" maxlength="8" />
-              <div id="dateError" style="color:red; font-size:12px; display:none; margin-top:4px;">
-                존재하지 않는 날짜입니다.
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <div class="grid-row">
-          <div class="field">
-            <div class="field-label">SKU</div>
-            <div class="field-control">
-              <input id="sku" type="text" value="" maxlength="1">
+    <main class="inbound-page">
+      <div class="page-shell">
+        <header class="page-hero">
+          <div class="hero-left">
+            <h2 class="page-title">입고 관리</h2>
+          </div>
+          <div class="hero-right">
+            <div class="hero-stat">
+              <span class="stat-value">초기화버튼예정</span>
+            </div>
+            <div class="hero-stat">
+              <span class="stat-value">설정버튼예정</span>
             </div>
           </div>
-          <div class="field">
-            <div class="field-label-must">상품명 *</div>
-            <div class="field-control">
-              <input id="product-name" type="text" value="" maxlength="1">
+        </header>
+
+        <section class="page-grid">
+          <div class="page-main">
+            <section class="panel highlight-panel">
+              <div class="panel-header split-header">
+                <div class="panel-title">
+                  <h3>입고 예정 파일</h3>
+                  <p class="panel-desc">입고 예정 파일을 선택하세요.</p>
+                </div>
+                <button id="btn-select-excel" class="btn-primary btn-wide">엑셀 파일 선택 (.xlsx, .xls)</button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <h3>기본 정보</h3>
+                  <p class="panel-desc">입고 기본 정보를 입력하세요.</p>
+                </div>
+                <div class="panel-meta">
+                  <span class="meta-pill">필수 항목 *</span>
+                </div>
+              </div>
+
+              <div class="inbound-form">
+                <div class="grid-row">
+                  <div class="field">
+                    <div class="field-label">셀러</div>
+                    <div class="field-control">
+                      <select id="sel-seller">
+                        <option value="">선택</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">입고센터</div>
+                    <div class="field-control">
+                      <select id="sel-center">
+                        <option value="">선택</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">상품구분</div>
+                    <div class="field-control">
+                      <select id="sel-type">
+                        <option value="">선택</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">쇼핑몰</div>
+                    <div class="field-control">
+                      <select id="sel-shop">
+                        <option value="">선택</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">입고예정일</div>
+                    <div class="field-control">
+                      <input id="dateInput" type="text" inputmode="numeric" placeholder="YYYYMMDD" maxlength="8" />
+                      <div id="dateError" class="field-error">존재하지 않는 날짜입니다.</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid-row">
+                  <div class="field">
+                    <div class="field-label">SKU</div>
+                    <div class="field-control">
+                      <input id="sku" type="text" value="" maxlength="1">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label-must">상품명 *</div>
+                    <div class="field-control">
+                      <input id="product-name" type="text" value="" maxlength="1">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">유통기한</div>
+                    <div class="field-control">
+                      <input id="expiry" type="text" value="" maxlength="1">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">LOT</div>
+                    <div class="field-control">
+                      <input id="lot" type="text" value="" maxlength="1">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label-must">입고예정수량 *</div>
+                    <div class="field-control">
+                      <input id="expected-qty" type="text" value="" maxlength="1">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+                    <section class="panel action-panel">
+          <div class="panel-header split-header">
+            <div class="panel-title">
+              <h3>입고 파일 변환</h3>
+              <p class="panel-desc">파일 변환 작업을 실행하세요.</p>
+            </div>
+            <div class="action-group action-group-fixed">
+              <button id="btn-process" class="btn-primary">입고파일 변환</button>
+              <button id="btn-verify" class="btn-secondary">검수파일 변환</button>
             </div>
           </div>
-          <div class="field">
-            <div class="field-label">유통기한</div>
-            <div class="field-control">
-              <input id="expiry" type="text" value="" maxlength="1">
+        </section>
+          </div>
+
+          <aside class="page-side">
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <h3>출고센터</h3>
+                  <p class="panel-desc">출고센터명을 입력하세요.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                <input id="input-release-center" class="side-input" type="text" placeholder="예: 서울1센터">
+              </div>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <h3>양식지 선택</h3>
+                  <p class="panel-desc">사용할 양식지를 선택하세요.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="field">
+                  <div class="field-control">
+                    <select id="sel-template-sheet">
+                      <option value="">선택</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <h3>템플릿 업로드</h3>
+                  <p class="panel-desc">입고/검수 템플릿을 선택하세요.</p>
+                </div>
+                <div class="panel-meta">
+                  <span id="default-template-status" class="meta-pill">기본양식 적용</span>
+                </div>
+              </div>
+              <div class="panel-body stack">
+                <div class="upload-row">
+                  <button id="btn-select-inbound-file" class="btn-outline">입고파일양식 엑셀첨부 (.xlsx .xls)</button>
+                  <!-- <span id="inbound-template-badge" class="template-badge">( 기본양식 적용 ❌ )</span> -->
+                </div>
+                <div class="upload-row">
+                  <button id="btn-select-verify-file" class="btn-outline">입고검수파일양식 엑셀첨부 (.xlsx .xls)</button>
+                  <!-- <span id="verify-template-badge" class="template-badge">( 기본양식 적용 ❌ )</span> -->
+                </div>
+              </div>
+            </section>
+          </aside>
+        </section>
+
+        <!-- <section class="panel action-panel">
+          <div class="panel-header split-header">
+            <div class="panel-title">
+              <h3>입고 작업</h3>
+              <p class="panel-desc">파일 작업과 검수 작업을 실행하세요.</p>
+            </div>
+            <div class="action-group">
+              <button id="btn-process" class="btn-primary">입고 파일 작업</button>
+              <button id="btn-verify" class="btn-secondary">입고 검수파일 작업</button>
             </div>
           </div>
-          <div class="field">
-            <div class="field-label">LOT</div>
-            <div class="field-control">
-              <input id="lot" type="text" value="" maxlength="1">
-            </div>
-          </div>
-          <div class="field">
-            <div class="field-label-must">입고예정수량 *</div>
-            <div class="field-control">
-              <input id="expected-qty" type="text" value="" maxlength="1">
-            </div>
-          </div>
-        </div>
+        </section> -->
       </div>
-      <div class="excel-actions">
-        <div class="action-row">
-          <button id="btn-process" class="action-btn">입고파일 작업</button>
-          <button id="btn-verify" class="action-btn">입고검수파일 작업</button>
-        </div>
-        <div class="action-row">
-          <div class="excel-upload">
-            <div class="excel-controls">
-              <button id="btn-select-inbound-file" class="excel-btn">
-                입고파일양식 엑셀첨부 (.xlsx .xls)
-              </button>
-              <span id="inbound-template-badge" class="template-badge" style="display: none;">기본양식 적용됨</span>
-            </div>
-          </div>
-          <div class="excel-upload">
-            <div class="excel-controls">
-              <button id="btn-select-verify-file" class="excel-btn">
-                입고검수파일양식 엑셀첨부 (.xlsx .xls)
-              </button>
-              <span id="verify-template-badge" class="template-badge" style="display: none;">기본양식 적용됨</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+    </main>
   </div>
+
   <script src="../js/header.js"></script>
   <script src="../js/renderer-inbound.js"></script>
-
 </body>
 
 </html>

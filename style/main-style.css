@@ -4,6 +4,8 @@
     align-items: center;
     justify-content: space-between;
     padding: 0px 20px;
+    height: 60px;
+    box-sizing: border-box;
     background: #fff;
     border-bottom: 1px solid #e0e0e0;
   }

@@ -25,6 +25,16 @@
     const badgeVerify = document.getElementById('verify-template-badge');
     const btnSelectInbound = document.getElementById('btn-select-inbound-file');
     const badgeInbound = document.getElementById('inbound-template-badge');
+    const defaultTemplateStatus = document.getElementById('default-template-status');
+    let hasVerifyDefault = false;
+    let hasInboundDefault = false;
+
+    function updateDefaultTemplateStatus() {
+      if (!defaultTemplateStatus) return;
+      defaultTemplateStatus.textContent = (hasVerifyDefault && hasInboundDefault)
+        ? '기본양식 적용'
+        : '기본양식 적용안됨';
+    }
 
     // 입고검수파일양식 체크 (id = 1)
     try {
@@ -35,7 +45,7 @@
         if (btnSelectVerify && badgeVerify) {
           btnSelectVerify.classList.add('has-default');
           btnSelectVerify.textContent = `입고검수파일양식 엑셀첨부 (.xlsx .xls)`;
-          badgeVerify.textContent = '기본양식 적용됨';
+          // badgeVerify.textContent = '( 기본양식 적용  ✅ )';
 if (checkVerify.ok) {
     badgeVerify.classList.add('visible'); // CSS의 visibility: visible 적용
     badgeVerify.style.display = 'block';   // 혹시 모르니 display도 block 유지
@@ -46,8 +56,8 @@ if (checkVerify.ok) {
       } else {
         console.warn("⚠️ 입고검수파일 양식 없음:", checkVerify.error);
         if (badgeVerify) {
-          badgeVerify.textContent = '기본양식 없음';
-          badgeVerify.classList.add('no-template');
+          // badgeVerify.textContent = '기본양식 없음';
+          // badgeVerify.classList.add('no-template');
 if (checkVerify.ok) {
     badgeVerify.classList.add('visible'); // CSS의 visibility: visible 적용
     badgeVerify.style.display = 'block';   // 혹시 모르니 display도 block 유지
@@ -73,7 +83,7 @@ if (checkVerify.ok) {
         if (btnSelectInbound && badgeInbound) {
           btnSelectInbound.classList.add('has-default');
           btnSelectInbound.textContent = `입고파일양식 엑셀첨부 (.xlsx .xls)`;
-          badgeInbound.textContent = '기본양식 적용됨';
+          // badgeInbound.textContent = '( 기본양식 적용 ✅ )';
 if (checkInbound.ok) {
     badgeInbound.classList.add('visible'); // CSS의 visibility: visible 적용
     badgeInbound.style.display = 'block';   // 혹시 모르니 display도 block 유지
@@ -84,8 +94,8 @@ if (checkInbound.ok) {
       } else {
         console.warn("⚠️ 입고파일 양식 없음:", checkInbound.error);
         if (badgeInbound) {
-          badgeInbound.textContent = '기본양식 없음';
-          badgeInbound.classList.add('no-template');
+          // badgeInbound.textContent = '기본양식 없음';
+          // badgeInbound.classList.add('no-template');
 if (checkVerify.ok) {
     badgeVerify.classList.add('visible'); // CSS의 visibility: visible 적용
     badgeVerify.style.display = 'block';   // 혹시 모르니 display도 block 유지
