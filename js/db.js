@@ -1,4 +1,4 @@
-const { app } = require("electron");
+﻿const { app } = require("electron");
 const dotenv = require("dotenv");
 const path = require("path");
 const { Client } = require("pg");
@@ -161,17 +161,42 @@ async function getShops() {
 }
 
 /**
+ * CodeMaster에서 parent_code=600(입고검수파일양식) 목록 조회
+ * @returns {Promise<Array<{ code: number|string, name: string }>>}
+ */
+async function getForm() {
+  const res = await query(
+    'SELECT code, name FROM "CodeMaster" WHERE parent_code = 600 ORDER BY sort_order',
+    [],
+  );
+  return res.rows || [];
+}
+
+/**
+ * FormPaper에서 셀러별 양식 조회 (seller_code로 form_code 반환)
+ * @param {number|string} sellerCode
+ * @returns {Promise<{ seller_code: number|string, form_code: number|string } | null>}
+ */
+async function getFormBySeller(sellerCode) {
+  const res = await query(
+    'SELECT seller_code, form_code FROM "FormPaper" WHERE seller_code = $1 LIMIT 1',
+    [sellerCode],
+  );
+  return res.rows[0] || null;
+}
+
+/**
  * 셀러별 SellerColumn 매핑 조회 (엑셀 컬럼 매핑)
  * @param {number|string} sellerCode
  * @returns {Promise<Array<{ id: number, seller_code: number, column: string, column_code: number, name: string }>>}
  */
-async function getSellerColumns(sellerCode) {
+async function getFormColumns(formCode) {
   const res = await query(
-    `SELECT A.id, A.seller_code, A.column, A.column_code, B.name
-     FROM "SellerColumn" AS A
-     INNER JOIN "CodeMaster" AS B ON A.column_code = B.code
-     WHERE A.seller_code = $1`,
-    [sellerCode],
+    `SELECT S.seller_code, S.column, C.code, C.name
+     FROM "SellerColumn" AS S
+     INNER JOIN "CodeMaster" AS C ON S.column_code = C.code
+     WHERE S.seller_code = $1`,
+    [formCode],
   );
   return res.rows || [];
 }
@@ -233,7 +258,10 @@ module.exports = {
   getProductTypes,
   getCenters,
   getShops,
-  getSellerColumns,
+  getForm,
+  getFormBySeller,
+  getFormColumns,
   getInboundCheckTemplate,
   getInboundExcelTemplate,
 };
+

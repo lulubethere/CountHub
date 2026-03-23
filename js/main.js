@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require("electron");
+﻿const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
 const db = require("./db.js");
 const fs = require("fs");
@@ -61,9 +61,23 @@ ipcMain.handle("get-shops", async () => {
     return { ok: false };
   }
 });
-ipcMain.handle("get-seller-columns", async (_, code) => {
+ipcMain.handle("get-form", async () => {
   try {
-    return { ok: true, data: await db.getSellerColumns(code) };
+    return { ok: true, data: await db.getForm() };
+  } catch (e) {
+    return { ok: false };
+  }
+});
+ipcMain.handle("get-form-by-seller", async (_, sellerCode) => {
+  try {
+    return { ok: true, data: await db.getFormBySeller(sellerCode) };
+  } catch (e) {
+    return { ok: false };
+  }
+});
+ipcMain.handle("get-form-columns", async (_, code) => {
+  try {
+    return { ok: true, data: await db.getFormColumns(code) };
   } catch (e) {
     return { ok: false };
   }
@@ -643,3 +657,4 @@ app.on("window-all-closed", () => {
 app.on("activate", () => {
   if (mainWindow === null) createWindow();
 });
+

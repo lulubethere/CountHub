@@ -1,5 +1,5 @@
-(function () {
-  const { ipcRenderer } = require("electron");
+﻿(function () {
+  const { ipcRenderer, webUtils } = require("electron");
   const Toastify = require("toastify-js");
 
   // 1. 로그인 체크 (기존 유지)
@@ -20,6 +20,11 @@
   let inboundExcelPath = null;
 
   document.addEventListener("DOMContentLoaded", async function () {
+    // Drag & drop 기본 동작 방지 (파일 열림 방지)
+    const preventWindowDrop = (e) => e.preventDefault();
+    window.addEventListener("dragover", preventWindowDrop);
+    window.addEventListener("drop", preventWindowDrop);
+
     // --- [DB 양식 및 콤보박스 로드 섹션 (기존 동일)] ---
     const btnSelectVerify = document.getElementById('btn-select-verify-file');
     const badgeVerify = document.getElementById('verify-template-badge');
@@ -65,7 +70,7 @@ if (checkVerify.ok) {
     badgeVerify.classList.remove('visible');
 }        }
       }
-    } catch (err) {
+      } catch (err) {
       console.error("입고검수파일 양식 체크 에러:", err);
       if (badgeVerify) {
         badgeVerify.textContent = '기본양식 없음';
@@ -103,7 +108,7 @@ if (checkVerify.ok) {
     badgeVerify.classList.remove('visible');
 }        }
       }
-    } catch (err) {
+      } catch (err) {
       console.error("입고파일 양식 체크 에러:", err);
       if (badgeInbound) {
         badgeInbound.textContent = '기본양식 없음';
@@ -116,6 +121,7 @@ if (checkVerify.ok) {
     const selType = document.getElementById("sel-type");
     const selCenter = document.getElementById("sel-center");
     const selShop = document.getElementById("sel-shop");
+    const selTemplateSheet = document.getElementById("sel-template-sheet");
     const dateInput = document.getElementById("dateInput");
     const inputReleaseCenter = document.getElementById("input-release-center");
 
@@ -145,6 +151,9 @@ if (checkVerify.ok) {
     loadCombo(selType, 'get-product-types');
     loadCombo(selCenter, 'get-centers');
     loadCombo(selShop, 'get-shops');
+    loadCombo(selTemplateSheet, 'get-form');
+
+    const nameToFieldId = { 'SKU': 'sku', '상품명': 'product-name', '유통기한': 'expiry', '로트': 'lot', '수량': 'expected-qty' };
 
     // 셀러 변경 시 자동 바인딩 로직 (기존 유지)
     selSeller?.addEventListener('change', async function () {
@@ -154,11 +163,24 @@ if (checkVerify.ok) {
         if (selType) selType.selectedIndex = 1;
         if (selShop) selShop.selectedIndex = 1;        
       }
-      const nameToFieldId = { 'SKU': 'sku', '상품명': 'product-name', '유통기한': 'expiry', '로트': 'lot', '수량': 'expected-qty' };
-      Object.values(nameToFieldId).forEach(id => { const input = document.getElementById(id); if (input) input.value = ''; });
+      if (selTemplateSheet) selTemplateSheet.value = "";
       if (!sellerCode) return;
       try {
-        const result = await ipcRenderer.invoke('get-seller-columns', sellerCode);
+        const formResult = await ipcRenderer.invoke('get-form-by-seller', sellerCode);
+        if (formResult.ok && formResult.data && selTemplateSheet) {
+          selTemplateSheet.value = String(formResult.data.form_code ?? "");
+          selTemplateSheet.dispatchEvent(new Event('change'));
+        }
+      } catch (e) { console.error('컬럼 로드 실패:', e); }
+    });
+
+    // 양식지 변경 시 컬럼 바인딩
+    selTemplateSheet?.addEventListener('change', async function () {
+      const formCode = this.value.trim();
+      Object.values(nameToFieldId).forEach(id => { const input = document.getElementById(id); if (input) input.value = ''; });
+      if (!formCode) return;
+      try {
+        const result = await ipcRenderer.invoke('get-form-columns', formCode);
         if (result.ok && result.data) {
           result.data.forEach(row => {
             const fieldId = nameToFieldId[row.name];
@@ -166,7 +188,8 @@ if (checkVerify.ok) {
             if (input) input.value = row.column || '';
           });
         }
-      } catch (e) { console.error('컬럼 로드 실패:', e); }
+      } 
+      catch (e) { console.error('컬럼 로드 실패:', e); }
     });
 
     // 날짜 포맷팅 (기존 유지)
@@ -175,6 +198,18 @@ if (checkVerify.ok) {
       if (raw.length === 8) this.value = `${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
     });
 
+    function isExcelFile(fileName) {
+      return /\.(xlsx|xls)$/i.test(fileName || '');
+    }
+
+    function setSelectedFile(btn, type, filePath) {
+      if (!btn || !filePath) return;
+      if (type === 'seller') sellerExcelPath = filePath;
+      if (type === 'verify') { verifyExcelPath = filePath; if (badgeVerify) badgeVerify.style.display = 'none'; }
+      if (type === 'inbound') { inboundExcelPath = filePath; if (badgeInbound) badgeInbound.style.display = 'none'; }
+      btn.textContent = filePath.split('\\').pop();
+    }
+
     // 파일 선택 공통 함수 (기존 유지)
     async function selectFile(btnId, type) {
       const btn = document.getElementById(btnId);
@@ -182,16 +217,69 @@ if (checkVerify.ok) {
       btn.addEventListener('click', async () => {
         const result = await ipcRenderer.invoke('select-excel-file');
         if (result.ok) {
-          if (type === 'seller') sellerExcelPath = result.path;
-          if (type === 'verify') { verifyExcelPath = result.path; if (badgeVerify) badgeVerify.style.display = 'none'; }
-          if (type === 'inbound') { inboundExcelPath = result.path; if (badgeInbound) badgeInbound.style.display = 'none'; }
-          btn.textContent = result.path.split('\\').pop();
+          setSelectedFile(btn, type, result.path);
         }
+      });
+    }
+
+    function extractPathFromDataTransfer(e) {
+      if (!e || !e.dataTransfer) return '';
+      const uriList = e.dataTransfer.getData("text/uri-list");
+      if (uriList && uriList.startsWith("file:///")) {
+        try {
+          const decoded = decodeURI(uriList.split("\n")[0]).replace(/^file:\/\//i, "");
+          return decoded.replace(/\//g, "\\");
+        } catch (_) { return ''; }
+      }
+      const text = e.dataTransfer.getData("text/plain");
+      if (text && text.startsWith("file:///")) {
+        try {
+          const decoded = decodeURI(text).replace(/^file:\/\//i, "");
+          return decoded.replace(/\//g, "\\");
+        } catch (_) { return ''; }
+      }
+      return '';
+    }
+
+    function enableDragDrop(btnId, type) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+
+      btn.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        btn.classList.add("drop-active");
+      });
+
+      btn.addEventListener("dragleave", () => {
+        btn.classList.remove("drop-active");
+      });
+
+      btn.addEventListener("drop", (e) => {
+        e.preventDefault();
+        btn.classList.remove("drop-active");
+        const files = e.dataTransfer?.files;
+        if (!files || files.length === 0) return;
+
+        const file = files[0];
+        const fileName = file?.name || '';
+        const filePath = (webUtils?.getPathForFile ? webUtils.getPathForFile(file) : file?.path) || extractPathFromDataTransfer(e) || '';
+        if (!isExcelFile(fileName || filePath)) {
+          showToast("엑셀 파일만 가능합니다 (.xlsx, .xls)", true);
+          return;
+        }
+        if (!filePath) {
+          showToast("파일 경로를 읽을 수 없습니다. 버튼 클릭으로 첨부해주세요.", true);
+          return;
+        }
+        setSelectedFile(btn, type, filePath);
       });
     }
     selectFile('btn-select-excel', 'seller');
     selectFile('btn-select-verify-file', 'verify');
     selectFile('btn-select-inbound-file', 'inbound');
+    enableDragDrop('btn-select-excel', 'seller');
+    enableDragDrop('btn-select-verify-file', 'verify');
+    enableDragDrop('btn-select-inbound-file', 'inbound');
 
     // 토스트 알림 공통 함수
     function showToast(msg, isError = false) {
@@ -293,3 +381,7 @@ if (checkVerify.ok) {
 
   });
 })();
+
+
+
+

@@ -1,23 +1,20 @@
 :root {
   --ink-900: #0f172a;
-  --ink-700: #334155;
-  --ink-500: #64748b;
-  --line-200: #e2e8f0;
-  --line-300: #cbd5e1;
-  --bg: #f6f7fb;
+  --ink-700: #1f2937;
+  --ink-500: #6b7280;
+  --line-200: #e5e7eb;
+  --line-300: #d1d5db;
+  --bg: #f2f4f7;
   --panel: #ffffff;
   --brand: #2563eb;
   --brand-strong: #1d4ed8;
-  --accent: #f97316;
-  --shadow: 0 16px 32px rgba(15, 23, 42, 0.08);
+  --accent: #14b8a6;
+  --shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
 }
 
 .inbound-page {
   padding: 20px 20px;
-  background:
-    radial-gradient(1000px 520px at 0% -10%, rgba(37, 99, 235, 0.12), transparent 60%),
-    radial-gradient(900px 420px at 100% 0%, rgba(14, 165, 233, 0.12), transparent 58%),
-    var(--bg);
+  background: var(--bg);
   height: calc(100vh - 60px);
   box-sizing: border-box;
 }
@@ -36,9 +33,9 @@
   justify-content: space-between;
   gap: 24px;
   padding: 10px 24px;
-  background: var(--panel);
+  background: #ffffff;
   border: 1px solid var(--line-200);
-  border-radius: 18px;
+  border-radius: 20px;
   box-shadow: var(--shadow);
 }
 
@@ -54,8 +51,8 @@
   width: fit-content;
   padding: 4px 12px;
   border-radius: 999px;
-  background: #e0ecff;
-  color: #1e3a8a;
+  background: rgba(20, 184, 166, 0.15);
+  color: #0f766e;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.4px;
@@ -86,9 +83,10 @@
   flex-direction: column;
   gap: 4px;
   padding: 10px 14px;
-  border-radius: 12px;
-  background: #f8fafc;
+  border-radius: 14px;
+  background: #ffffff;
   border: 1px solid var(--line-200);
+  box-shadow: 0 10px 18px rgba(15, 23, 42, 0.06);
 }
 
 .stat-label {
@@ -126,7 +124,7 @@
 .panel {
   background: var(--panel);
   border: 1px solid var(--line-200);
-  border-radius: 16px;
+  border-radius: 18px;
   padding: 18px 20px 20px;
   box-shadow: 0 10px 20px rgba(15, 23, 42, 0.05);
   display: flex;
@@ -135,8 +133,8 @@
 }
 
 .highlight-panel {
-  border-color: rgba(37, 99, 235, 0.2);
-  box-shadow: 0 18px 30px rgba(37, 99, 235, 0.12);
+  border-color: rgba(20, 184, 166, 0.25);
+  box-shadow: 0 18px 30px rgba(20, 184, 166, 0.18);
   justify-content: center;
 }
 
@@ -178,8 +176,8 @@
 
 .meta-pill {
   font-size: 11px;
-  color: #1d4ed8;
-  background: #e0ecff;
+  color: #0f766e;
+  background: rgba(20, 184, 166, 0.12);
   padding: 4px 8px;
   border-radius: 999px;
   font-weight: 700;
@@ -226,9 +224,9 @@
   width: 100%;
   padding: 9px 10px;
   border: 1px solid var(--line-300);
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 13px;
-  background: #f9fbff;
+  background: #f9fafb;
   color: var(--ink-900);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
   box-sizing: border-box;
@@ -238,8 +236,8 @@
 .field-control input:focus,
 .side-input:focus {
   outline: none;
-  border-color: #60a5fa;
-  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+  border-color: #14b8a6;
+  box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
 }
 
 .field-error {
@@ -253,46 +251,96 @@
 .btn-secondary,
 .btn-outline {
   height: 40px;
-  padding: 0 16px;
-  border-radius: 12px;
+  padding: 0 18px;
+  border-radius: 14px;
   font-size: 13px;
   font-weight: 700;
   cursor: pointer;
   border: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+  letter-spacing: 0.1px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
 .btn-primary {
-  background: var(--accent);
-  color: #fff;
-  box-shadow: 0 12px 22px rgba(249, 115, 22, 0.25);
+  background: #14b8a6;
+  color: #ffffff;
+  box-shadow: none;
 }
 
 .btn-primary:hover {
-  background: #ea580c;
+  background: #0f766e;
   transform: translateY(-1px);
 }
 
 .btn-secondary {
-  background: #eef2ff;
-  color: #1d3aa6;
-  border: 1px solid #dbe2ff;
+  background: #f3f4f6;
+  color: #0f172a;
+  border: 1px solid #e5e7eb;
+  box-shadow: none;
 }
 
 .btn-secondary:hover {
-  background: #e0e7ff;
+  background: #e5e7eb;
   transform: translateY(-1px);
 }
 
 .btn-outline {
   background: #ffffff;
-  color: #1d4ed8;
-  border: 1px solid #c7d2fe;
+  color: #111827;
+  border: 1px solid #e5e7eb;
+  box-shadow: none;
 }
 
 .btn-outline:hover {
-  background: #eef2ff;
+  background: #f3f4f6;
   transform: translateY(-1px);
+}
+
+/* 드래그 시 자연스러운 강조 효과 */
+.btn-primary.drop-active,
+.btn-secondary.drop-active,
+.btn-outline.drop-active {
+  background: #e0f2fe;
+  box-shadow: 0 6px 10px rgba(14, 165, 233, 0.16);
+  transform: translateY(-1px) scale(1.02);
+}
+
+/* 드래그 상태: 버튼 색상에 맞춘 강조 */
+#btn-select-excel.drop-active {
+  background: #2ea773;
+  box-shadow: 0 6px 10px rgba(33, 133, 97, 0.18);
+}
+
+#btn-process.drop-active,
+#btn-verify.drop-active {
+  background: #ef4444;
+  box-shadow: 0 6px 10px rgba(239, 68, 68, 0.18);
+}
+
+/* 엑셀 선택 버튼 전용 (연두 톤) */
+#btn-select-excel {
+  background: #218561;
+  color: #ffffff;
+  border: 1px solid #218561;
+  box-shadow: none;
+}
+
+#btn-select-excel:hover {
+  background: #1f7756;
+}
+
+/* 입고/검수 변환 버튼 전용 (연한 레드 톤) */
+#btn-process,
+#btn-verify {
+  background: #ef4444;
+  color: #ffffff;
+  border: 1px solid #ef4444;
+  box-shadow: none;
+}
+
+#btn-process:hover,
+#btn-verify:hover {
+  background: #dc2626;
 }
 
 .btn-wide {
@@ -371,7 +419,7 @@
   background: #0ea5e9;
   color: #ffffff;
   border: 1px solid #0ea5e9;
-  box-shadow: 0 12px 22px rgba(14, 165, 233, 0.25);
+  box-shadow: none;
 }
 
 .action-group-fixed .btn-primary:hover,
