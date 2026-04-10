@@ -212,7 +212,8 @@ async function getInboundCheckTemplate() {
 
     if (res.rows && res.rows.length > 0) {
       const fileData = res.rows[0].excelfile;
-
+      const hasBuffer = fileData && Buffer.isBuffer(fileData) && fileData.length > 0;
+      if (!hasBuffer) return null;
       return {
         buffer: fileData,
         filename: res.rows[0].description,
@@ -235,7 +236,8 @@ async function getInboundExcelTemplate() {
 
     if (res.rows && res.rows.length > 0) {
       const fileData = res.rows[0].excelfile;
-
+      const hasBuffer = fileData && Buffer.isBuffer(fileData) && fileData.length > 0;
+      if (!hasBuffer) return null;
       return {
         buffer: fileData,
         filename: res.rows[0].description,
@@ -246,6 +248,118 @@ async function getInboundExcelTemplate() {
     console.error("DB 쿼리 중 에러 발생:", err);
     throw err;
   }
+}
+
+/**
+ * CodeMaster 목록 조회 (parent_code 기준)
+ * @param {number} parentCode
+ * @returns {Promise<Array<{ code: number|string, name: string, sort_order: number|null }>>}
+ */
+async function getCodeMasterList(parentCode) {
+  const res = await query(
+    'SELECT code, name, sort_order FROM "CodeMaster" WHERE parent_code = $1 ORDER BY sort_order NULLS LAST, code',
+    [parentCode],
+  );
+  return res.rows || [];
+}
+
+/**
+ * CodeMaster 저장 (신규/수정)
+ * @param {number} parentCode
+ * @param {string} code
+ * @param {string} name
+ * @param {number|null} sortOrder
+ * @returns {Promise<boolean>}
+ */
+async function saveCodeMasterItem(parentCode, code, name, sortOrder) {
+  const trimmedName = (name || "").trim();
+  if (!trimmedName) return false;
+  if (code) {
+    const res = await query(
+      'UPDATE "CodeMaster" SET name = $1, sort_order = $2 WHERE code = $3',
+      [trimmedName, sortOrder, code],
+    );
+    return res.rowCount > 0 ? code : false;
+  }
+  const nextRes = await query(
+    'SELECT COALESCE(MAX(code), 0) + 1 AS next_code FROM "CodeMaster" WHERE parent_code = $1',
+    [parentCode],
+  );
+  const nextCode = nextRes.rows?.[0]?.next_code;
+  if (!nextCode) return false;
+  const insertRes = await query(
+    'INSERT INTO "CodeMaster" (code, name, parent_code, sort_order) VALUES ($1, $2, $3, $4)',
+    [nextCode, trimmedName, parentCode, sortOrder],
+  );
+  return insertRes.rowCount > 0 ? nextCode : false;
+}
+
+/**
+ * CodeMaster 삭제
+ * @param {string|number} code
+ * @returns {Promise<boolean>}
+ */
+async function deleteCodeMasterItem(code) {
+  if (!code) return false;
+  const res = await query(
+    'DELETE FROM "CodeMaster" WHERE code = $1',
+    [code],
+  );
+  return res.rowCount > 0;
+}
+
+/**
+ * CodeMaster 정렬 순서 저장
+ * @param {number} parentCode
+ * @param {Array<string|number>} orderedCodes
+ * @returns {Promise<boolean>}
+ */
+async function updateCodeMasterOrder(parentCode, orderedCodes) {
+  if (!parentCode || !Array.isArray(orderedCodes)) return false;
+  await query("BEGIN");
+  try {
+    for (let i = 0; i < orderedCodes.length; i++) {
+      await query(
+        'UPDATE "CodeMaster" SET sort_order = $1 WHERE code = $2 AND parent_code = $3',
+        [i + 1, orderedCodes[i], parentCode],
+      );
+    }
+    await query("COMMIT");
+    return true;
+  } catch (err) {
+    await query("ROLLBACK");
+    throw err;
+  }
+}
+
+/**
+ * ExcelFiles 테이블의 기본 템플릿 업데이트
+ * @param {number} id
+ * @param {Buffer} buffer
+ * @param {string} filename
+ * @returns {Promise<boolean>}
+ */
+async function updateExcelTemplate(id, buffer, filename) {
+  if (!id || !buffer) return false;
+  const res = await query(
+    'UPDATE "ExcelFiles" SET excelfile = $1, description = $2 WHERE id = $3',
+    [buffer, filename || "", id],
+  );
+  return res.rowCount > 0;
+}
+
+/**
+ * ExcelFiles 기본 템플릿 삭제 (파일/설명 초기화)
+ * @param {number} id
+ * @returns {Promise<boolean>}
+ */
+async function deleteExcelTemplate(id) {
+  if (!id) return false;
+  const res = await query(
+    'UPDATE "ExcelFiles" SET excelfile = NULL, description = NULL WHERE id = $1',
+    [id],
+  );
+  return res.rowCount > 0;
 }
 
 module.exports = {
@@ -259,9 +373,15 @@ module.exports = {
   getCenters,
   getShops,
   getForm,
+  getCodeMasterList,
+  saveCodeMasterItem,
+  deleteCodeMasterItem,
+  updateCodeMasterOrder,
   getFormBySeller,
   getFormColumns,
   getInboundCheckTemplate,
   getInboundExcelTemplate,
+  updateExcelTemplate,
+  deleteExcelTemplate,
 };
 

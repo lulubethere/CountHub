@@ -36,9 +36,12 @@
 
     function updateDefaultTemplateStatus() {
       if (!defaultTemplateStatus) return;
-      defaultTemplateStatus.textContent = (hasVerifyDefault && hasInboundDefault)
+      const isApplied = hasVerifyDefault && hasInboundDefault;
+      defaultTemplateStatus.textContent = isApplied
         ? '기본양식 적용'
-        : '기본양식 적용안됨';
+        : '기본양식 미적용';
+      defaultTemplateStatus.classList.toggle('status-applied', isApplied);
+      defaultTemplateStatus.classList.toggle('status-missing', !isApplied);
     }
 
     // 입고검수파일양식 체크 (id = 1)
@@ -47,6 +50,7 @@
       
       if (checkVerify.ok) {
         console.log("✅ 입고검수파일 양식 준비 완료:", checkVerify.filename);
+        hasVerifyDefault = true;
         if (btnSelectVerify && badgeVerify) {
           btnSelectVerify.classList.add('has-default');
           btnSelectVerify.textContent = `입고검수파일양식 엑셀첨부 (.xlsx .xls)`;
@@ -60,6 +64,7 @@ if (checkVerify.ok) {
         }
       } else {
         console.warn("⚠️ 입고검수파일 양식 없음:", checkVerify.error);
+        hasVerifyDefault = false;
         if (badgeVerify) {
           // badgeVerify.textContent = '기본양식 없음';
           // badgeVerify.classList.add('no-template');
@@ -70,8 +75,11 @@ if (checkVerify.ok) {
     badgeVerify.classList.remove('visible');
 }        }
       }
+      updateDefaultTemplateStatus();
       } catch (err) {
       console.error("입고검수파일 양식 체크 에러:", err);
+      hasVerifyDefault = false;
+      updateDefaultTemplateStatus();
       if (badgeVerify) {
         badgeVerify.textContent = '기본양식 없음';
         badgeVerify.classList.add('no-template');
@@ -85,6 +93,7 @@ if (checkVerify.ok) {
       
       if (checkInbound.ok) {
         console.log("✅ 입고파일 양식 준비 완료:", checkInbound.filename);
+        hasInboundDefault = true;
         if (btnSelectInbound && badgeInbound) {
           btnSelectInbound.classList.add('has-default');
           btnSelectInbound.textContent = `입고파일양식 엑셀첨부 (.xlsx .xls)`;
@@ -98,6 +107,7 @@ if (checkInbound.ok) {
         }
       } else {
         console.warn("⚠️ 입고파일 양식 없음:", checkInbound.error);
+        hasInboundDefault = false;
         if (badgeInbound) {
           // badgeInbound.textContent = '기본양식 없음';
           // badgeInbound.classList.add('no-template');
@@ -108,8 +118,11 @@ if (checkVerify.ok) {
     badgeVerify.classList.remove('visible');
 }        }
       }
+      updateDefaultTemplateStatus();
       } catch (err) {
       console.error("입고파일 양식 체크 에러:", err);
+      hasInboundDefault = false;
+      updateDefaultTemplateStatus();
       if (badgeInbound) {
         badgeInbound.textContent = '기본양식 없음';
         badgeInbound.classList.add('no-template');
@@ -124,6 +137,80 @@ if (checkVerify.ok) {
     const selTemplateSheet = document.getElementById("sel-template-sheet");
     const dateInput = document.getElementById("dateInput");
     const inputReleaseCenter = document.getElementById("input-release-center");
+    const btnReset = document.getElementById("btn-reset");
+    const btnSettings = document.getElementById("btn-settings");
+    const settingsModal = document.getElementById("settings-modal");
+    const settingsModalCard = document.querySelector(".modal-card");
+    const settingsModalClose = document.getElementById("settings-modal-close");
+    const settingsModalBackdrop = document.getElementById("settings-modal-backdrop");
+    const btnDefaultInbound = document.getElementById("btn-default-inbound");
+    const btnDefaultVerify = document.getElementById("btn-default-verify");
+    const btnDefaultInboundDelete = document.getElementById("btn-default-inbound-delete");
+    const btnDefaultVerifyDelete = document.getElementById("btn-default-verify-delete");
+    const defaultInboundName = document.getElementById("default-inbound-name");
+    const defaultVerifyName = document.getElementById("default-verify-name");
+    const dbTabs = Array.from(document.querySelectorAll(".db-tab"));
+    const dbList = document.getElementById("db-list");
+    const dbBtnAdd = document.getElementById("db-btn-add");
+    const settingsSave = document.getElementById("settings-save");
+    const settingsCancel = document.getElementById("settings-cancel");
+    const dbAddModal = document.getElementById("db-add-modal");
+    const dbAddModalCard = document.querySelector(".mini-modal-card");
+    const dbAddInput = document.getElementById("db-add-input");
+    const dbAddConfirm = document.getElementById("db-add-confirm");
+    const dbAddCancel = document.getElementById("db-add-cancel");
+    const confirmModal = document.getElementById("confirm-modal");
+    const confirmTitle = document.getElementById("confirm-title");
+    const confirmMessage = document.getElementById("confirm-message");
+    const confirmCancel = document.getElementById("confirm-cancel");
+    const confirmOk = document.getElementById("confirm-ok");
+    let confirmResolve = null;
+    const settingsNavItems = Array.from(document.querySelectorAll(".settings-nav-item"));
+    const settingsSections = Array.from(document.querySelectorAll(".settings-section"));
+    let currentDbTab = "seller";
+    let currentDbItems = [];
+    let currentDbDirty = false;
+    let dragIndex = null;
+    let pendingDbDeletes = new Set();
+    let pendingTemplateChanges = { inboundPath: null, verifyPath: null };
+    let pendingTemplateDeletes = { inbound: false, verify: false };
+
+    btnReset?.addEventListener("click", () => {
+      window.location.reload();
+    });
+
+    const openSettingsModal = () => {
+      if (!settingsModal) return;
+      settingsModal.classList.add("is-open");
+      settingsModal.setAttribute("aria-hidden", "false");
+      document.body.style.overflow = "hidden";
+      if (defaultVerifyName) defaultVerifyName.textContent = "";
+      if (defaultInboundName) defaultInboundName.textContent = "";
+      if (btnDefaultVerifyDelete) btnDefaultVerifyDelete.style.display = "none";
+      if (btnDefaultInboundDelete) btnDefaultInboundDelete.style.display = "none";
+      pendingDbDeletes = new Set();
+      pendingTemplateChanges = { inboundPath: null, verifyPath: null };
+      pendingTemplateDeletes = { inbound: false, verify: false };
+      setDbDirty(false);
+      loadDefaultTemplateStatus();
+      activateSettingsSection("db");
+      loadDbList(currentDbTab);
+      settingsModalCard?.focus();
+    };
+
+    const closeSettingsModal = () => {
+      if (!settingsModal) return;
+      settingsModal.classList.remove("is-open");
+      settingsModal.setAttribute("aria-hidden", "true");
+      document.body.style.overflow = "";
+    };
+
+    btnSettings?.addEventListener("click", openSettingsModal);
+    settingsModalClose?.addEventListener("click", closeSettingsModal);
+    settingsModalBackdrop?.addEventListener("click", closeSettingsModal);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeSettingsModal();
+    });
 
     // 컬럼 입력 자동 대문자 변환 (모든 관련 인풋에 미리 적용)
     const allInputIds = ["sku", "product-name", "expiry", "lot", "expected-qty"];
@@ -202,6 +289,98 @@ if (checkVerify.ok) {
       return /\.(xlsx|xls)$/i.test(fileName || '');
     }
 
+    async function loadDefaultTemplateStatus() {
+      try {
+        const [verifyRes, inboundRes] = await Promise.all([
+          ipcRenderer.invoke('check-default-template'),
+          ipcRenderer.invoke('check-inbound-template'),
+        ]);
+        if (defaultVerifyName) {
+          defaultVerifyName.textContent = verifyRes.ok ? verifyRes.filename : "";
+        }
+        if (defaultInboundName) {
+          defaultInboundName.textContent = inboundRes.ok ? inboundRes.filename : "";
+        }
+        if (btnDefaultVerify) {
+          btnDefaultVerify.textContent = verifyRes.ok ? "입고검수파일 기본양식 변경" : "입고검수파일 기본양식 등록";
+        }
+        if (btnDefaultInbound) {
+          btnDefaultInbound.textContent = inboundRes.ok ? "입고파일 기본양식 변경" : "입고파일 기본양식 등록";
+        }
+        if (btnDefaultVerifyDelete) {
+          btnDefaultVerifyDelete.style.display = verifyRes.ok ? "inline-flex" : "none";
+        }
+        if (btnDefaultInboundDelete) {
+          btnDefaultInboundDelete.style.display = inboundRes.ok ? "inline-flex" : "none";
+        }
+        hasVerifyDefault = !!verifyRes.ok;
+        hasInboundDefault = !!inboundRes.ok;
+        updateDefaultTemplateStatus();
+      } catch (err) {
+        console.error("기본양식 상태 로드 실패:", err);
+      }
+    }
+
+    function stageTemplateChange(templateType, filePath) {
+      if (!filePath) return;
+      const cleanName = filePath.split("\\").pop()?.replace(/\.(xls|xlsx)$/i, "") || "";
+      if (templateType === "verify") {
+        pendingTemplateChanges.verifyPath = filePath;
+        pendingTemplateDeletes.verify = false;
+        if (defaultVerifyName) defaultVerifyName.textContent = cleanName;
+        if (btnDefaultVerify) btnDefaultVerify.textContent = "입고검수파일 기본양식 변경";
+        if (btnDefaultVerifyDelete) btnDefaultVerifyDelete.style.display = "inline-flex";
+      }
+      if (templateType === "inbound") {
+        pendingTemplateChanges.inboundPath = filePath;
+        pendingTemplateDeletes.inbound = false;
+        if (defaultInboundName) defaultInboundName.textContent = cleanName;
+        if (btnDefaultInbound) btnDefaultInbound.textContent = "입고파일 기본양식 변경";
+        if (btnDefaultInboundDelete) btnDefaultInboundDelete.style.display = "inline-flex";
+      }
+      setDbDirty(true);
+    }
+
+    function stageTemplateDelete(templateType) {
+      const okPromise = openConfirmModal({
+        title: "기본양식 삭제",
+        message: "기본양식을 삭제할까요?",
+        okText: "삭제",
+        cancelText: "취소",
+      });
+      const run = async () => {
+        const ok = await okPromise;
+        if (!ok) return;
+        if (templateType === "verify") {
+          pendingTemplateDeletes.verify = true;
+          pendingTemplateChanges.verifyPath = null;
+          if (defaultVerifyName) defaultVerifyName.textContent = "";
+          if (btnDefaultVerify) btnDefaultVerify.textContent = "입고검수파일 기본양식 등록";
+          if (btnDefaultVerifyDelete) btnDefaultVerifyDelete.style.display = "none";
+        }
+        if (templateType === "inbound") {
+          pendingTemplateDeletes.inbound = true;
+          pendingTemplateChanges.inboundPath = null;
+          if (defaultInboundName) defaultInboundName.textContent = "";
+          if (btnDefaultInbound) btnDefaultInbound.textContent = "입고파일 기본양식 등록";
+          if (btnDefaultInboundDelete) btnDefaultInboundDelete.style.display = "none";
+        }
+        setDbDirty(true);
+      };
+      run();
+    }
+
+    async function selectAndUpdateDefault(btnId, templateType) {
+      const btn = document.getElementById(btnId);
+      if (!btn) return;
+      btn.addEventListener("click", async () => {
+        const result = await ipcRenderer.invoke("select-excel-file");
+        if (result.ok) {
+          stageTemplateChange(templateType, result.path);
+        }
+      });
+    }
+
     function setSelectedFile(btn, type, filePath) {
       if (!btn || !filePath) return;
       if (type === 'seller') sellerExcelPath = filePath;
@@ -254,7 +433,7 @@ if (checkVerify.ok) {
         btn.classList.remove("drop-active");
       });
 
-      btn.addEventListener("drop", (e) => {
+      btn.addEventListener("drop", async (e) => {
         e.preventDefault();
         btn.classList.remove("drop-active");
         const files = e.dataTransfer?.files;
@@ -271,6 +450,11 @@ if (checkVerify.ok) {
           showToast("파일 경로를 읽을 수 없습니다. 버튼 클릭으로 첨부해주세요.", true);
           return;
         }
+        if (type === "default-inbound" || type === "default-verify") {
+          const templateType = type === "default-inbound" ? "inbound" : "verify";
+          stageTemplateChange(templateType, filePath);
+          return;
+        }
         setSelectedFile(btn, type, filePath);
       });
     }
@@ -280,6 +464,292 @@ if (checkVerify.ok) {
     enableDragDrop('btn-select-excel', 'seller');
     enableDragDrop('btn-select-verify-file', 'verify');
     enableDragDrop('btn-select-inbound-file', 'inbound');
+
+    selectAndUpdateDefault('btn-default-inbound', 'inbound');
+    selectAndUpdateDefault('btn-default-verify', 'verify');
+    enableDragDrop('btn-default-inbound', 'default-inbound');
+    enableDragDrop('btn-default-verify', 'default-verify');
+
+    btnDefaultInboundDelete?.addEventListener("click", () => stageTemplateDelete("inbound"));
+    btnDefaultVerifyDelete?.addEventListener("click", () => stageTemplateDelete("verify"));
+
+    const dbTabToParentCode = {
+      seller: 100,
+      type: 200,
+      center: 300,
+      shop: 400,
+      form: 600,
+    };
+
+    function activateSettingsSection(sectionKey) {
+      settingsNavItems.forEach((item) => {
+        item.classList.toggle("is-active", item.dataset.section === sectionKey);
+      });
+      settingsSections.forEach((section) => {
+        section.classList.toggle("is-active", section.dataset.section === sectionKey);
+      });
+    }
+
+    settingsNavItems.forEach((item) => {
+      item.addEventListener("click", () => {
+        activateSettingsSection(item.dataset.section);
+      });
+    });
+
+    function setDbDirty(isDirty) {
+      currentDbDirty = isDirty;
+      if (settingsSave) settingsSave.disabled = !isDirty;
+    }
+
+    function renderDbList() {
+      if (!dbList) return;
+      dbList.innerHTML = "";
+      if (!currentDbItems.length) {
+        const empty = document.createElement("div");
+        empty.className = "db-list-code";
+        empty.textContent = "등록된 항목이 없습니다.";
+        dbList.appendChild(empty);
+        return;
+      }
+      currentDbItems.forEach((item, idx) => {
+        const row = document.createElement("div");
+        row.className = "db-list-item";
+        row.setAttribute("draggable", "true");
+        row.dataset.index = String(idx);
+        row.innerHTML = `
+          <div class="db-drag-handle" title="드래그로 순서 변경">|||</div>
+          <div class="db-list-name">${item.name || ""}</div>
+          <button class="db-delete-btn" title="삭제">x</button>
+        `;
+        row.addEventListener("dragstart", () => {
+          dragIndex = idx;
+          row.classList.add("is-dragging");
+        });
+        row.addEventListener("dragend", () => {
+          dragIndex = null;
+          row.classList.remove("is-dragging");
+        });
+        row.addEventListener("dragover", (e) => {
+          e.preventDefault();
+        });
+        row.addEventListener("drop", (e) => {
+          e.preventDefault();
+          const targetIndex = Number(row.dataset.index);
+          if (dragIndex === null || dragIndex === targetIndex) return;
+          const moved = currentDbItems.splice(dragIndex, 1)[0];
+          currentDbItems.splice(targetIndex, 0, moved);
+          currentDbItems = currentDbItems.map((it, i) => ({
+            ...it,
+            sort_order: i + 1,
+          }));
+          setDbDirty(true);
+          renderDbList();
+        });
+        const deleteBtn = row.querySelector(".db-delete-btn");
+        deleteBtn?.addEventListener("click", async (ev) => {
+          ev.stopPropagation();
+          const ok = await openConfirmModal({
+            title: "삭제 확인",
+            message: `'${item.name || ""}' 을(를) 삭제하시겠습니까?`,
+            okText: "삭제",
+            cancelText: "취소",
+          });
+          if (!ok) return;
+          dragIndex = null;
+          if (item.code) {
+            pendingDbDeletes.add(String(item.code));
+          }
+          currentDbItems = currentDbItems.filter((it) => it !== item);
+          currentDbItems = currentDbItems.map((it, i) => ({
+            ...it,
+            sort_order: i + 1,
+          }));
+          setDbDirty(true);
+          renderDbList();
+        });
+        dbList.appendChild(row);
+      });
+    }
+
+    async function loadDbList(tabKey) {
+      const parentCode = dbTabToParentCode[tabKey];
+      if (!parentCode) return;
+      try {
+        const result = await ipcRenderer.invoke("get-code-master-list", {
+          parentCode,
+        });
+        if (result.ok) {
+          currentDbItems = result.data || [];
+          setDbDirty(false);
+          renderDbList();
+        }
+      } catch (err) {
+        console.error("DB 목록 로드 실패:", err);
+      }
+    }
+
+    dbTabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        dbTabs.forEach((t) => t.classList.remove("is-active"));
+        tab.classList.add("is-active");
+        currentDbTab = tab.dataset.tab;
+        loadDbList(currentDbTab);
+      });
+    });
+
+    dbBtnAdd?.addEventListener("click", () => {
+      if (!dbAddModal) return;
+      dbAddModal.classList.remove("is-open");
+      dbAddModal.setAttribute("aria-hidden", "true");
+      requestAnimationFrame(() => {
+        dbAddModal.classList.add("is-open");
+        dbAddModal.setAttribute("aria-hidden", "false");
+        if (dbAddInput) {
+          dbAddInput.value = "";
+          dbAddInput.disabled = false;
+          dbAddInput.readOnly = false;
+        }
+        window.focus();
+        dbAddModalCard?.focus();
+        dbAddInput?.blur();
+        dbAddInput?.focus({ preventScroll: true });
+        setTimeout(() => {
+          dbAddInput?.focus({ preventScroll: true });
+        }, 50);
+      });
+    });
+
+    dbAddModal?.addEventListener("mousedown", () => {
+      dbAddInput?.focus({ preventScroll: true });
+    });
+
+    function openConfirmModal({ title, message, okText, cancelText }) {
+      if (!confirmModal) return Promise.resolve(false);
+      if (confirmTitle) confirmTitle.textContent = title || "확인";
+      if (confirmMessage) confirmMessage.textContent = message || "";
+      if (confirmOk) confirmOk.textContent = okText || "확인";
+      if (confirmCancel) confirmCancel.textContent = cancelText || "취소";
+      confirmModal.classList.add("is-open");
+      confirmModal.setAttribute("aria-hidden", "false");
+      confirmOk?.focus({ preventScroll: true });
+      return new Promise((resolve) => {
+        confirmResolve = resolve;
+      });
+    }
+
+    function closeConfirmModal(result) {
+      if (!confirmModal) return;
+      confirmModal.classList.remove("is-open");
+      confirmModal.setAttribute("aria-hidden", "true");
+      if (confirmResolve) confirmResolve(result);
+      confirmResolve = null;
+    }
+
+    confirmCancel?.addEventListener("click", () => closeConfirmModal(false));
+    confirmOk?.addEventListener("click", () => closeConfirmModal(true));
+    confirmModal?.addEventListener("click", (e) => {
+      if (e.target === confirmModal) closeConfirmModal(false);
+    });
+
+    dbAddCancel?.addEventListener("click", () => {
+      if (!dbAddModal) return;
+      dbAddModal.classList.remove("is-open");
+      dbAddModal.setAttribute("aria-hidden", "true");
+    });
+
+    dbAddConfirm?.addEventListener("click", async () => {
+      const name = dbAddInput?.value.trim();
+      if (!name) {
+        showToast("이름을 입력해주세요.", true);
+        return;
+      }
+      const tempId = `temp-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      currentDbItems.push({
+        code: null,
+        name,
+        sort_order: currentDbItems.length + 1,
+        tempId,
+      });
+      setDbDirty(true);
+      renderDbList();
+      dbAddModal.classList.remove("is-open");
+      dbAddModal.setAttribute("aria-hidden", "true");
+    });
+
+    settingsSave?.addEventListener("click", async () => {
+      const hasTemplatePending =
+        pendingTemplateDeletes.verify ||
+        pendingTemplateDeletes.inbound ||
+        !!pendingTemplateChanges.verifyPath ||
+        !!pendingTemplateChanges.inboundPath;
+      if (!currentDbDirty && !hasTemplatePending) return;
+      const parentCode = dbTabToParentCode[currentDbTab];
+      try {
+        // 1) 삭제 처리
+        for (const code of pendingDbDeletes) {
+          await ipcRenderer.invoke("delete-code-master-item", { code });
+        }
+        pendingDbDeletes.clear();
+
+        // 2) 신규 추가 처리 (현재 순서대로 등록)
+        for (const item of currentDbItems) {
+          if (!item.code && item.tempId) {
+            const payload = {
+              parentCode,
+              code: null,
+              name: item.name,
+              sortOrder: item.sort_order,
+            };
+            const result = await ipcRenderer.invoke("save-code-master-item", payload);
+            if (result.ok) {
+              item.code = result.code;
+            }
+          }
+        }
+
+        // 3) 정렬 순서 저장
+        const orderedCodes = currentDbItems.map((item) => item.code).filter(Boolean);
+        if (orderedCodes.length) {
+          await ipcRenderer.invoke("update-code-master-order", {
+            parentCode,
+            orderedCodes,
+          });
+        }
+
+        // 4) 템플릿 변경/삭제 처리
+        if (pendingTemplateDeletes.verify) {
+          await ipcRenderer.invoke("delete-default-template", { templateType: "verify" });
+        }
+        if (pendingTemplateDeletes.inbound) {
+          await ipcRenderer.invoke("delete-default-template", { templateType: "inbound" });
+        }
+        if (pendingTemplateChanges.verifyPath) {
+          await ipcRenderer.invoke("update-default-template", {
+            templateType: "verify",
+            path: pendingTemplateChanges.verifyPath,
+          });
+        }
+        if (pendingTemplateChanges.inboundPath) {
+          await ipcRenderer.invoke("update-default-template", {
+            templateType: "inbound",
+            path: pendingTemplateChanges.inboundPath,
+          });
+        }
+
+        showToast("저장되었습니다.");
+        setDbDirty(false);
+        pendingTemplateChanges = { inboundPath: null, verifyPath: null };
+        pendingTemplateDeletes = { inbound: false, verify: false };
+        await loadDefaultTemplateStatus();
+        await loadDbList(currentDbTab);
+      } catch (err) {
+        showToast("저장 실패", true);
+      }
+    });
+
+    settingsCancel?.addEventListener("click", () => {
+      closeSettingsModal();
+    });
 
     // 토스트 알림 공통 함수
     function showToast(msg, isError = false) {

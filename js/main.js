@@ -68,6 +68,53 @@ ipcMain.handle("get-form", async () => {
     return { ok: false };
   }
 });
+
+ipcMain.handle("get-code-master-list", async (_, payload) => {
+  try {
+    const parentCode = Number(payload?.parentCode);
+    if (!parentCode) return { ok: false, error: "parent_code가 없습니다." };
+    return { ok: true, data: await db.getCodeMasterList(parentCode) };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle("save-code-master-item", async (_, payload) => {
+  try {
+    const parentCode = Number(payload?.parentCode);
+    const code = payload?.code;
+    const name = payload?.name;
+    const sortOrder =
+      payload?.sortOrder === null || payload?.sortOrder === undefined
+        ? null
+        : Number(payload.sortOrder);
+    const savedCode = await db.saveCodeMasterItem(parentCode, code, name, sortOrder);
+    return savedCode ? { ok: true, code: savedCode } : { ok: false, error: "저장 실패" };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle("delete-code-master-item", async (_, payload) => {
+  try {
+    const code = payload?.code;
+    const ok = await db.deleteCodeMasterItem(code);
+    return ok ? { ok: true } : { ok: false, error: "삭제 실패" };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle("update-code-master-order", async (_, payload) => {
+  try {
+    const parentCode = Number(payload?.parentCode);
+    const orderedCodes = payload?.orderedCodes || [];
+    const ok = await db.updateCodeMasterOrder(parentCode, orderedCodes);
+    return ok ? { ok: true } : { ok: false, error: "정렬 저장 실패" };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
 ipcMain.handle("get-form-by-seller", async (_, sellerCode) => {
   try {
     return { ok: true, data: await db.getFormBySeller(sellerCode) };
@@ -91,6 +138,51 @@ ipcMain.handle("select-excel-file", async () => {
   return result.canceled
     ? { ok: false }
     : { ok: true, path: result.filePaths[0] };
+});
+
+ipcMain.handle("update-default-template", async (_, payload) => {
+  try {
+    const filePath = payload?.path;
+    const templateType = payload?.templateType;
+    if (!filePath) return { ok: false, error: "파일 경로가 없습니다." };
+
+    const id = templateType === "verify" ? 1 : templateType === "inbound" ? 2 : null;
+    if (!id) return { ok: false, error: "알 수 없는 템플릿 유형입니다." };
+
+    const ext = path.extname(filePath).toLowerCase();
+    let buffer;
+    if (ext === ".xls") {
+      const tempXls = XLSX.readFile(filePath);
+      buffer = XLSX.write(tempXls, { type: "buffer", bookType: "xlsx" });
+    } else {
+      buffer = fs.readFileSync(filePath);
+    }
+
+    const originalName = path.basename(filePath);
+    const storedName = originalName.replace(/\.(xls|xlsx)$/i, "");
+
+    const updated = await db.updateExcelTemplate(id, buffer, storedName);
+    if (!updated) return { ok: false, error: "DB 업데이트 실패" };
+    return { ok: true, filename: storedName };
+  } catch (err) {
+    console.error("기본양식 업데이트 에러:", err);
+    return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle("delete-default-template", async (_, payload) => {
+  try {
+    const templateType = payload?.templateType;
+    const id = templateType === "verify" ? 1 : templateType === "inbound" ? 2 : null;
+    if (!id) return { ok: false, error: "알 수 없는 템플릿 유형입니다." };
+
+    const deleted = await db.deleteExcelTemplate(id);
+    if (!deleted) return { ok: false, error: "DB 업데이트 실패" };
+    return { ok: true };
+  } catch (err) {
+    console.error("기본양식 삭제 에러:", err);
+    return { ok: false, error: err.message };
+  }
 });
 
 // [추가] DB에서 양식을 가져오는 핸들러
