@@ -9,10 +9,26 @@
 <body>
   <div class="screen">
     <div id="app-header"></div>
-    <div class="main-content">
-      <div class="menu-buttons">
-        <button id="inbound-btn">입고</button>
-        <button id="outbound-btn">출고</button>
+    <div class="main-content main-hero">
+      <div class="main-card">
+        <div class="main-heading">
+          <h1>작업을 선택하세요</h1>
+          <p>입고/출고 흐름을 빠르게 시작합니다.</p>
+        </div>
+        <div class="menu-cards">
+          <button id="inbound-btn" class="menu-card inbound">
+            <span class="menu-title">입고</span>
+            <span class="menu-desc">입고 파일 변환 및 기본 정보 설정</span>
+          </button>
+          <button id="outbound-btn" class="menu-card outbound">
+            <span class="menu-title">출고</span>
+            <span class="menu-desc">출고 작업 진행 및 데이터 확인</span>
+          </button>
+        </div>
+        <div class="recent-section">
+          <div class="recent-title">최근 작업</div>
+          <div class="recent-placeholder">추후 최근 작업 목록이 이 영역에 표시됩니다.</div>
+        </div>
       </div>
     </div>
   </div>

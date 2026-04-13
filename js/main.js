@@ -115,6 +115,17 @@ ipcMain.handle("update-code-master-order", async (_, payload) => {
     return { ok: false, error: e.message };
   }
 });
+
+ipcMain.handle("save-form-columns", async (_, payload) => {
+  try {
+    const formCode = payload?.formCode;
+    const columnMap = payload?.columnMap || {};
+    const ok = await db.updateFormColumns(formCode, columnMap);
+    return ok ? { ok: true } : { ok: false, error: "저장 실패" };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
 ipcMain.handle("get-form-by-seller", async (_, sellerCode) => {
   try {
     return { ok: true, data: await db.getFormBySeller(sellerCode) };

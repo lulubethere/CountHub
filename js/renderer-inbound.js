@@ -167,6 +167,12 @@ if (checkVerify.ok) {
     let confirmResolve = null;
     const settingsNavItems = Array.from(document.querySelectorAll(".settings-nav-item"));
     const settingsSections = Array.from(document.querySelectorAll(".settings-section"));
+    const selFormColumns = document.getElementById("sel-form-columns");
+    const colSku = document.getElementById("col-sku");
+    const colName = document.getElementById("col-name");
+    const colExpiry = document.getElementById("col-expiry");
+    const colLot = document.getElementById("col-lot");
+    const colQty = document.getElementById("col-qty");
     let currentDbTab = "seller";
     let currentDbItems = [];
     let currentDbDirty = false;
@@ -174,6 +180,8 @@ if (checkVerify.ok) {
     let pendingDbDeletes = new Set();
     let pendingTemplateChanges = { inboundPath: null, verifyPath: null };
     let pendingTemplateDeletes = { inbound: false, verify: false };
+    let currentFormCode = "";
+    let columnDirty = false;
 
     btnReset?.addEventListener("click", () => {
       window.location.reload();
@@ -184,8 +192,8 @@ if (checkVerify.ok) {
       settingsModal.classList.add("is-open");
       settingsModal.setAttribute("aria-hidden", "false");
       document.body.style.overflow = "hidden";
-      if (defaultVerifyName) defaultVerifyName.textContent = "";
-      if (defaultInboundName) defaultInboundName.textContent = "";
+      setTemplateName(defaultVerifyName, "");
+      setTemplateName(defaultInboundName, "");
       if (btnDefaultVerifyDelete) btnDefaultVerifyDelete.style.display = "none";
       if (btnDefaultInboundDelete) btnDefaultInboundDelete.style.display = "none";
       pendingDbDeletes = new Set();
@@ -195,6 +203,7 @@ if (checkVerify.ok) {
       loadDefaultTemplateStatus();
       activateSettingsSection("db");
       loadDbList(currentDbTab);
+      loadFormOptions();
       settingsModalCard?.focus();
     };
 
@@ -232,6 +241,31 @@ if (checkVerify.ok) {
             result.data.map(row => `<option value="${row.code}">${row.name || ''}</option>`).join('');
         }
       } catch (e) { console.error(`${channel} 로드 실패:`, e); }
+    }
+
+    async function refreshInboundSelectors() {
+      const prevSeller = selSeller?.value || "";
+      const prevType = selType?.value || "";
+      const prevCenter = selCenter?.value || "";
+      const prevShop = selShop?.value || "";
+      const prevForm = selTemplateSheet?.value || "";
+      await Promise.all([
+        loadCombo(selSeller, 'get-sellers'),
+        loadCombo(selType, 'get-product-types'),
+        loadCombo(selCenter, 'get-centers'),
+        loadCombo(selShop, 'get-shops'),
+        loadCombo(selTemplateSheet, 'get-form'),
+      ]);
+      if (selSeller) selSeller.value = prevSeller;
+      if (selType) selType.value = prevType;
+      if (selCenter) selCenter.value = prevCenter;
+      if (selShop) selShop.value = prevShop;
+      if (selTemplateSheet) selTemplateSheet.value = prevForm;
+      if (selSeller && selSeller.value) {
+        selSeller.dispatchEvent(new Event('change'));
+      } else if (selTemplateSheet && selTemplateSheet.value) {
+        selTemplateSheet.dispatchEvent(new Event('change'));
+      }
     }
 
     loadCombo(selSeller, 'get-sellers');
@@ -289,18 +323,75 @@ if (checkVerify.ok) {
       return /\.(xlsx|xls)$/i.test(fileName || '');
     }
 
+    function setTemplateName(container, name) {
+      if (!container) return;
+      const textEl = container.querySelector(".template-filename-text");
+      const value = (name || "").trim();
+      if (textEl) textEl.textContent = value;
+      container.dataset.empty = value ? "false" : "true";
+    }
+
+    function setColumnInputs(map) {
+      if (colSku) colSku.value = map.sku || "";
+      if (colName) colName.value = map.name || "";
+      if (colExpiry) colExpiry.value = map.expiry || "";
+      if (colLot) colLot.value = map.lot || "";
+      if (colQty) colQty.value = map.qty || "";
+    }
+
+    function getColumnInputs() {
+      return {
+        sku: colSku?.value.trim() || "",
+        name: colName?.value.trim() || "",
+        expiry: colExpiry?.value.trim() || "",
+        lot: colLot?.value.trim() || "",
+        qty: colQty?.value.trim() || "",
+      };
+    }
+
+    function normalizeColumnInput(el) {
+      if (!el) return;
+      const raw = (el.value || "").replace(/[^a-zA-Z]/g, "");
+      el.value = raw.toUpperCase().slice(0, 1);
+    }
+
+    async function loadFormOptions() {
+      if (!selFormColumns) return;
+      const result = await ipcRenderer.invoke("get-form");
+      if (result.ok && result.data) {
+        selFormColumns.innerHTML =
+          '<option value="">선택</option>' +
+          result.data.map((row) => `<option value="${row.code}">${row.name || ""}</option>`).join("");
+      }
+    }
+
+    async function loadFormColumns(formCode) {
+      if (!formCode) {
+        setColumnInputs({ sku: "", name: "", expiry: "", lot: "", qty: "" });
+        return;
+      }
+      const result = await ipcRenderer.invoke("get-form-columns", formCode);
+      if (result.ok && result.data) {
+        const map = { sku: "", name: "", expiry: "", lot: "", qty: "" };
+        result.data.forEach((row) => {
+          if (row.name === "SKU") map.sku = row.column || "";
+          if (row.name === "상품명") map.name = row.column || "";
+          if (row.name === "유통기한") map.expiry = row.column || "";
+          if (row.name === "로트") map.lot = row.column || "";
+          if (row.name === "수량") map.qty = row.column || "";
+        });
+        setColumnInputs(map);
+      }
+    }
+
     async function loadDefaultTemplateStatus() {
       try {
         const [verifyRes, inboundRes] = await Promise.all([
           ipcRenderer.invoke('check-default-template'),
           ipcRenderer.invoke('check-inbound-template'),
         ]);
-        if (defaultVerifyName) {
-          defaultVerifyName.textContent = verifyRes.ok ? verifyRes.filename : "";
-        }
-        if (defaultInboundName) {
-          defaultInboundName.textContent = inboundRes.ok ? inboundRes.filename : "";
-        }
+        setTemplateName(defaultVerifyName, verifyRes.ok ? verifyRes.filename : "");
+        setTemplateName(defaultInboundName, inboundRes.ok ? inboundRes.filename : "");
         if (btnDefaultVerify) {
           btnDefaultVerify.textContent = verifyRes.ok ? "입고검수파일 기본양식 변경" : "입고검수파일 기본양식 등록";
         }
@@ -327,14 +418,14 @@ if (checkVerify.ok) {
       if (templateType === "verify") {
         pendingTemplateChanges.verifyPath = filePath;
         pendingTemplateDeletes.verify = false;
-        if (defaultVerifyName) defaultVerifyName.textContent = cleanName;
+        setTemplateName(defaultVerifyName, cleanName);
         if (btnDefaultVerify) btnDefaultVerify.textContent = "입고검수파일 기본양식 변경";
         if (btnDefaultVerifyDelete) btnDefaultVerifyDelete.style.display = "inline-flex";
       }
       if (templateType === "inbound") {
         pendingTemplateChanges.inboundPath = filePath;
         pendingTemplateDeletes.inbound = false;
-        if (defaultInboundName) defaultInboundName.textContent = cleanName;
+        setTemplateName(defaultInboundName, cleanName);
         if (btnDefaultInbound) btnDefaultInbound.textContent = "입고파일 기본양식 변경";
         if (btnDefaultInboundDelete) btnDefaultInboundDelete.style.display = "inline-flex";
       }
@@ -350,21 +441,21 @@ if (checkVerify.ok) {
       });
       const run = async () => {
         const ok = await okPromise;
-        if (!ok) return;
-        if (templateType === "verify") {
-          pendingTemplateDeletes.verify = true;
-          pendingTemplateChanges.verifyPath = null;
-          if (defaultVerifyName) defaultVerifyName.textContent = "";
-          if (btnDefaultVerify) btnDefaultVerify.textContent = "입고검수파일 기본양식 등록";
-          if (btnDefaultVerifyDelete) btnDefaultVerifyDelete.style.display = "none";
-        }
-        if (templateType === "inbound") {
-          pendingTemplateDeletes.inbound = true;
-          pendingTemplateChanges.inboundPath = null;
-          if (defaultInboundName) defaultInboundName.textContent = "";
-          if (btnDefaultInbound) btnDefaultInbound.textContent = "입고파일 기본양식 등록";
-          if (btnDefaultInboundDelete) btnDefaultInboundDelete.style.display = "none";
-        }
+      if (!ok) return;
+      if (templateType === "verify") {
+        pendingTemplateDeletes.verify = true;
+        pendingTemplateChanges.verifyPath = null;
+        setTemplateName(defaultVerifyName, "");
+        if (btnDefaultVerify) btnDefaultVerify.textContent = "입고검수파일 기본양식 등록";
+        if (btnDefaultVerifyDelete) btnDefaultVerifyDelete.style.display = "none";
+      }
+      if (templateType === "inbound") {
+        pendingTemplateDeletes.inbound = true;
+        pendingTemplateChanges.inboundPath = null;
+        setTemplateName(defaultInboundName, "");
+        if (btnDefaultInbound) btnDefaultInbound.textContent = "입고파일 기본양식 등록";
+        if (btnDefaultInboundDelete) btnDefaultInboundDelete.style.display = "none";
+      }
         setDbDirty(true);
       };
       run();
@@ -493,6 +584,21 @@ if (checkVerify.ok) {
     settingsNavItems.forEach((item) => {
       item.addEventListener("click", () => {
         activateSettingsSection(item.dataset.section);
+      });
+    });
+
+    selFormColumns?.addEventListener("change", async (e) => {
+      currentFormCode = e.target.value;
+      await loadFormColumns(currentFormCode);
+      columnDirty = false;
+    });
+
+
+    [colSku, colName, colExpiry, colLot, colQty].forEach((el) => {
+      el?.addEventListener("input", () => {
+        normalizeColumnInput(el);
+        setDbDirty(true);
+        columnDirty = true;
       });
     });
 
@@ -682,7 +788,8 @@ if (checkVerify.ok) {
         pendingTemplateDeletes.inbound ||
         !!pendingTemplateChanges.verifyPath ||
         !!pendingTemplateChanges.inboundPath;
-      if (!currentDbDirty && !hasTemplatePending) return;
+      const hasColumnPending = currentFormCode && columnDirty;
+      if (!currentDbDirty && !hasTemplatePending && !hasColumnPending) return;
       const parentCode = dbTabToParentCode[currentDbTab];
       try {
         // 1) 삭제 처리
@@ -736,12 +843,31 @@ if (checkVerify.ok) {
           });
         }
 
+        // 5) 양식지 컬럼 설정 저장
+        if (currentFormCode && columnDirty) {
+          const columnMap = getColumnInputs();
+          const result = await ipcRenderer.invoke("save-form-columns", {
+            formCode: currentFormCode,
+            columnMap,
+          });
+          if (!result?.ok) {
+            showToast(result?.error || "양식지 컬럼 저장 실패", true);
+            return;
+          }
+          columnDirty = false;
+        }
+
         showToast("저장되었습니다.");
         setDbDirty(false);
         pendingTemplateChanges = { inboundPath: null, verifyPath: null };
         pendingTemplateDeletes = { inbound: false, verify: false };
         await loadDefaultTemplateStatus();
         await loadDbList(currentDbTab);
+        await loadFormOptions();
+        if (selFormColumns && currentFormCode) {
+          selFormColumns.value = currentFormCode;
+        }
+        await refreshInboundSelectors();
       } catch (err) {
         showToast("저장 실패", true);
       }
@@ -851,7 +977,3 @@ if (checkVerify.ok) {
 
   });
 })();
-
-
-
-

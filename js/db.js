@@ -301,11 +301,29 @@ async function saveCodeMasterItem(parentCode, code, name, sortOrder) {
  */
 async function deleteCodeMasterItem(code) {
   if (!code) return false;
-  const res = await query(
-    'DELETE FROM "CodeMaster" WHERE code = $1',
-    [code],
-  );
-  return res.rowCount > 0;
+  await query("BEGIN");
+  try {
+    const parentRes = await query(
+      'SELECT parent_code FROM "CodeMaster" WHERE code = $1',
+      [code],
+    );
+    const parentCode = parentRes.rows?.[0]?.parent_code ?? null;
+    if (Number(parentCode) === 600) {
+      await query(
+        'DELETE FROM "SellerColumn" WHERE seller_code = $1',
+        [code],
+      );
+    }
+    const res = await query(
+      'DELETE FROM "CodeMaster" WHERE code = $1',
+      [code],
+    );
+    await query("COMMIT");
+    return res.rowCount > 0;
+  } catch (err) {
+    await query("ROLLBACK");
+    throw err;
+  }
 }
 
 /**
@@ -323,6 +341,72 @@ async function updateCodeMasterOrder(parentCode, orderedCodes) {
         'UPDATE "CodeMaster" SET sort_order = $1 WHERE code = $2 AND parent_code = $3',
         [i + 1, orderedCodes[i], parentCode],
       );
+    }
+    await query("COMMIT");
+    return true;
+  } catch (err) {
+    await query("ROLLBACK");
+    throw err;
+  }
+}
+
+/**
+ * 컬럼 코드 맵 조회
+ * @param {string[]} names
+ * @returns {Promise<Map<string, number>>}
+ */
+async function getColumnCodeMap(names) {
+  const res = await query(
+    'SELECT code, name FROM "CodeMaster" WHERE parent_code = 500 AND name = ANY($1)',
+    [names],
+  );
+  const map = new Map();
+  (res.rows || []).forEach((row) => {
+    map.set(row.name, row.code);
+  });
+  return map;
+}
+
+/**
+ * 양식지 컬럼 설정 저장
+ * @param {number|string} formCode
+ * @param {{ sku?: string, name?: string, expiry?: string, lot?: string, qty?: string }} columnMap
+ * @returns {Promise<boolean>}
+ */
+async function updateFormColumns(formCode, columnMap) {
+  const codeNum = Number(formCode);
+  if (!Number.isFinite(codeNum)) return false;
+  const names = ["SKU", "상품명", "유통기한", "로트", "수량"];
+  const nameToValue = {
+    "SKU": columnMap.sku,
+    "상품명": columnMap.name,
+    "유통기한": columnMap.expiry,
+    "로트": columnMap.lot,
+    "수량": columnMap.qty,
+  };
+  const codeMap = await getColumnCodeMap(names);
+  const columnCodes = names.map((n) => codeMap.get(n)).filter(Boolean);
+  await query("BEGIN");
+  try {
+    const nextIdRes = await query(
+      'SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM "SellerColumn"',
+      [],
+    );
+    let nextId = Number(nextIdRes.rows?.[0]?.next_id || 1);
+    await query(
+      'DELETE FROM "SellerColumn" WHERE seller_code = $1',
+      [codeNum],
+    );
+    for (const name of names) {
+      const columnCode = codeMap.get(name);
+      const raw = nameToValue[name];
+      const value = raw === undefined || raw === null ? null : String(raw).trim() || null;
+      if (!columnCode) continue;
+      await query(
+        'INSERT INTO "SellerColumn" (id, seller_code, column_code, "column") VALUES ($1, $2, $3, $4)',
+        [nextId, codeNum, columnCode, value],
+      );
+      nextId += 1;
     }
     await query("COMMIT");
     return true;
@@ -377,6 +461,8 @@ module.exports = {
   saveCodeMasterItem,
   deleteCodeMasterItem,
   updateCodeMasterOrder,
+  updateFormColumns,
+  getColumnCodeMap,
   getFormBySeller,
   getFormColumns,
   getInboundCheckTemplate,
