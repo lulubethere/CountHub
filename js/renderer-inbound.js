@@ -141,7 +141,6 @@ if (checkVerify.ok) {
     const btnSettings = document.getElementById("btn-settings");
     const settingsModal = document.getElementById("settings-modal");
     const settingsModalCard = document.querySelector(".modal-card");
-    const settingsModalClose = document.getElementById("settings-modal-close");
     const settingsModalBackdrop = document.getElementById("settings-modal-backdrop");
     const btnDefaultInbound = document.getElementById("btn-default-inbound");
     const btnDefaultVerify = document.getElementById("btn-default-verify");
@@ -173,6 +172,8 @@ if (checkVerify.ok) {
     const colExpiry = document.getElementById("col-expiry");
     const colLot = document.getElementById("col-lot");
     const colQty = document.getElementById("col-qty");
+    const selLinkSeller = document.getElementById("sel-link-seller");
+    const selLinkForm = document.getElementById("sel-link-form");
     let currentDbTab = "seller";
     let currentDbItems = [];
     let currentDbDirty = false;
@@ -182,6 +183,8 @@ if (checkVerify.ok) {
     let pendingTemplateDeletes = { inbound: false, verify: false };
     let currentFormCode = "";
     let columnDirty = false;
+    let sellerFormDirty = false;
+    let pendingSellerFormLink = new Map();
 
     btnReset?.addEventListener("click", () => {
       window.location.reload();
@@ -199,11 +202,14 @@ if (checkVerify.ok) {
       pendingDbDeletes = new Set();
       pendingTemplateChanges = { inboundPath: null, verifyPath: null };
       pendingTemplateDeletes = { inbound: false, verify: false };
+      pendingSellerFormLink = new Map();
+      sellerFormDirty = false;
       setDbDirty(false);
       loadDefaultTemplateStatus();
       activateSettingsSection("db");
       loadDbList(currentDbTab);
       loadFormOptions();
+      loadSellerFormOptions();
       settingsModalCard?.focus();
     };
 
@@ -215,8 +221,7 @@ if (checkVerify.ok) {
     };
 
     btnSettings?.addEventListener("click", openSettingsModal);
-    settingsModalClose?.addEventListener("click", closeSettingsModal);
-    settingsModalBackdrop?.addEventListener("click", closeSettingsModal);
+    // settingsModalBackdrop 클릭으로 닫기 비활성화
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") closeSettingsModal();
     });
@@ -362,6 +367,34 @@ if (checkVerify.ok) {
         selFormColumns.innerHTML =
           '<option value="">선택</option>' +
           result.data.map((row) => `<option value="${row.code}">${row.name || ""}</option>`).join("");
+      }
+    }
+
+    async function loadSellerFormOptions() {
+      if (!selLinkSeller || !selLinkForm) return;
+      const [sellerRes, formRes] = await Promise.all([
+        ipcRenderer.invoke("get-sellers"),
+        ipcRenderer.invoke("get-form"),
+      ]);
+      if (sellerRes.ok && sellerRes.data) {
+        selLinkSeller.innerHTML =
+          '<option value="">선택</option>' +
+          sellerRes.data.map((row) => `<option value="${row.code}">${row.name || ""}</option>`).join("");
+      }
+      if (formRes.ok && formRes.data) {
+        selLinkForm.innerHTML =
+          '<option value="">선택</option>' +
+          formRes.data.map((row) => `<option value="${row.code}">${row.name || ""}</option>`).join("");
+      }
+    }
+
+    async function loadSellerFormLink(sellerCode) {
+      if (!sellerCode || !selLinkForm) return;
+      const result = await ipcRenderer.invoke("get-form-by-seller", sellerCode);
+      if (result.ok && result.data) {
+        selLinkForm.value = String(result.data.form_code ?? "");
+      } else {
+        selLinkForm.value = "";
       }
     }
 
@@ -583,7 +616,29 @@ if (checkVerify.ok) {
 
     settingsNavItems.forEach((item) => {
       item.addEventListener("click", () => {
-        activateSettingsSection(item.dataset.section);
+        const target = item.dataset.section;
+        activateSettingsSection(target);
+        if (target === "columns") {
+          if (selFormColumns) selFormColumns.value = "";
+          setColumnInputs({ sku: "", name: "", expiry: "", lot: "", qty: "" });
+          columnDirty = false;
+        }
+        if (target === "sellerform") {
+          if (selLinkSeller) selLinkSeller.value = "";
+          if (selLinkForm) selLinkForm.value = "";
+          pendingSellerFormLink = new Map();
+          sellerFormDirty = false;
+        }
+        if (target === "template") {
+          pendingTemplateChanges = { inboundPath: null, verifyPath: null };
+          pendingTemplateDeletes = { inbound: false, verify: false };
+          loadDefaultTemplateStatus();
+        }
+        if (target === "db") {
+          pendingDbDeletes = new Set();
+          setDbDirty(false);
+          loadDbList(currentDbTab);
+        }
       });
     });
 
@@ -591,6 +646,27 @@ if (checkVerify.ok) {
       currentFormCode = e.target.value;
       await loadFormColumns(currentFormCode);
       columnDirty = false;
+    });
+
+    selLinkSeller?.addEventListener("change", async (e) => {
+      const sellerCode = e.target.value;
+      if (!sellerCode) {
+        if (selLinkForm) selLinkForm.value = "";
+        return;
+      }
+      await loadSellerFormLink(sellerCode);
+    });
+
+    selLinkForm?.addEventListener("change", (e) => {
+      const sellerCode = selLinkSeller?.value;
+      if (!sellerCode) {
+        showToast("셀러를 먼저 선택해주세요.", true);
+        if (selLinkForm) selLinkForm.value = "";
+        return;
+      }
+      pendingSellerFormLink.set(String(sellerCode), e.target.value);
+      sellerFormDirty = true;
+      setDbDirty(true);
     });
 
 
@@ -664,6 +740,13 @@ if (checkVerify.ok) {
           dragIndex = null;
           if (item.code) {
             pendingDbDeletes.add(String(item.code));
+            if (currentDbTab === "seller") {
+              pendingSellerFormLink.delete(String(item.code));
+              if (selLinkSeller && selLinkSeller.value === String(item.code)) {
+                selLinkSeller.value = "";
+              }
+              if (selLinkForm) selLinkForm.value = "";
+            }
           }
           currentDbItems = currentDbItems.filter((it) => it !== item);
           currentDbItems = currentDbItems.map((it, i) => ({
@@ -789,7 +872,7 @@ if (checkVerify.ok) {
         !!pendingTemplateChanges.verifyPath ||
         !!pendingTemplateChanges.inboundPath;
       const hasColumnPending = currentFormCode && columnDirty;
-      if (!currentDbDirty && !hasTemplatePending && !hasColumnPending) return;
+      if (!currentDbDirty && !hasTemplatePending && !hasColumnPending && !sellerFormDirty) return;
       const parentCode = dbTabToParentCode[currentDbTab];
       try {
         // 1) 삭제 처리
@@ -857,6 +940,29 @@ if (checkVerify.ok) {
           columnDirty = false;
         }
 
+        // 6) 셀러-양식지 연결 저장
+        if (sellerFormDirty && pendingSellerFormLink.size) {
+          const sellerRes = await ipcRenderer.invoke("get-sellers");
+          const validSellerCodes = new Set(
+            (sellerRes.ok ? sellerRes.data : []).map((row) => String(row.code)),
+          );
+          for (const [sellerCode, formCode] of pendingSellerFormLink.entries()) {
+            if (!validSellerCodes.has(String(sellerCode))) {
+              continue;
+            }
+            const result = await ipcRenderer.invoke("save-seller-form-link", {
+              sellerCode,
+              formCode,
+            });
+            if (!result?.ok) {
+              showToast(result?.error || "셀러-양식지 저장 실패", true);
+              return;
+            }
+          }
+          pendingSellerFormLink = new Map();
+          sellerFormDirty = false;
+        }
+
         showToast("저장되었습니다.");
         setDbDirty(false);
         pendingTemplateChanges = { inboundPath: null, verifyPath: null };
@@ -867,13 +973,31 @@ if (checkVerify.ok) {
         if (selFormColumns && currentFormCode) {
           selFormColumns.value = currentFormCode;
         }
+        await loadSellerFormOptions();
         await refreshInboundSelectors();
       } catch (err) {
         showToast("저장 실패", true);
       }
     });
 
-    settingsCancel?.addEventListener("click", () => {
+    settingsCancel?.addEventListener("click", async () => {
+      const hasTemplatePending =
+        pendingTemplateDeletes.verify ||
+        pendingTemplateDeletes.inbound ||
+        !!pendingTemplateChanges.verifyPath ||
+        !!pendingTemplateChanges.inboundPath;
+      const hasColumnPending = currentFormCode && columnDirty;
+      const hasSellerFormPending = sellerFormDirty;
+      const hasDbPending = currentDbDirty;
+      if (hasTemplatePending || hasColumnPending || hasSellerFormPending || hasDbPending) {
+        const ok = await openConfirmModal({
+          title: "변경사항 있음",
+          message: "저장되지 않은 변경사항이 있습니다. 취소할까요?",
+          okText: "취소",
+          cancelText: "계속",
+        });
+        if (!ok) return;
+      }
       closeSettingsModal();
     });
 

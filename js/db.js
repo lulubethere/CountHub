@@ -314,6 +314,12 @@ async function deleteCodeMasterItem(code) {
         [code],
       );
     }
+    if (Number(parentCode) === 100) {
+      await query(
+        'DELETE FROM "FormPaper" WHERE seller_code = $1',
+        [code],
+      );
+    }
     const res = await query(
       'DELETE FROM "CodeMaster" WHERE code = $1',
       [code],
@@ -417,6 +423,48 @@ async function updateFormColumns(formCode, columnMap) {
 }
 
 /**
+ * 셀러-양식지 연결 저장
+ * @param {number|string} sellerCode
+ * @param {number|string|null} formCode
+ * @returns {Promise<boolean>}
+ */
+async function saveFormLink(sellerCode, formCode) {
+  const seller = Number(sellerCode);
+  if (!Number.isFinite(seller)) return false;
+  const form = formCode === "" || formCode === null || formCode === undefined ? null : Number(formCode);
+  if (form !== null && !Number.isFinite(form)) return false;
+
+  await query("BEGIN");
+  try {
+    if (form !== null) {
+      await query(
+        'DELETE FROM "FormPaper" WHERE seller_code = $1 OR form_code = $2',
+        [seller, form],
+      );
+      const nextIdRes = await query(
+        'SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM "FormPaper"',
+        [],
+      );
+      const nextId = Number(nextIdRes.rows?.[0]?.next_id || 1);
+      await query(
+        'INSERT INTO "FormPaper" (id, seller_code, form_code) VALUES ($1, $2, $3)',
+        [nextId, seller, form],
+      );
+    } else {
+      await query(
+        'DELETE FROM "FormPaper" WHERE seller_code = $1',
+        [seller],
+      );
+    }
+    await query("COMMIT");
+    return true;
+  } catch (err) {
+    await query("ROLLBACK");
+    throw err;
+  }
+}
+
+/**
  * ExcelFiles 테이블의 기본 템플릿 업데이트
  * @param {number} id
  * @param {Buffer} buffer
@@ -463,6 +511,7 @@ module.exports = {
   updateCodeMasterOrder,
   updateFormColumns,
   getColumnCodeMap,
+  saveFormLink,
   getFormBySeller,
   getFormColumns,
   getInboundCheckTemplate,

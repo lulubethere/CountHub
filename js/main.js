@@ -126,6 +126,17 @@ ipcMain.handle("save-form-columns", async (_, payload) => {
     return { ok: false, error: e.message };
   }
 });
+
+ipcMain.handle("save-seller-form-link", async (_, payload) => {
+  try {
+    const sellerCode = payload?.sellerCode;
+    const formCode = payload?.formCode ?? null;
+    const ok = await db.saveFormLink(sellerCode, formCode);
+    return ok ? { ok: true } : { ok: false, error: "저장 실패" };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
 ipcMain.handle("get-form-by-seller", async (_, sellerCode) => {
   try {
     return { ok: true, data: await db.getFormBySeller(sellerCode) };

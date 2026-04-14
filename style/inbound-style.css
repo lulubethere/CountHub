@@ -539,8 +539,8 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding-bottom: 6px;
-  border-bottom: none;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--line-200);
 }
 
 .template-title {
@@ -682,6 +682,47 @@
   gap: 16px;
 }
 
+.link-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 60px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.link-card {
+  border: 1px solid #e6ebf2;
+  border-radius: 14px;
+  padding: 12px;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.link-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-700);
+}
+
+.link-arrow {
+  height: 44px;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 800;
+  border: 1px dashed #e2e8f0;
+}
+
+.link-hint {
+  font-size: 11px;
+  color: var(--ink-500);
+}
+
 .columns-header {
   display: flex;
   align-items: center;
@@ -718,6 +759,15 @@
 @media screen and (max-width: 980px) {
   .columns-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .link-flow {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .link-arrow {
+    width: 100%;
+    height: 36px;
   }
 }
 
@@ -1080,28 +1130,30 @@
 
 /* 엑셀 선택 버튼 전용 (연두 톤) */
 #btn-select-excel {
-  background: #218561;
+  background: #2a9a6e;
   color: #ffffff;
-  border: 1px solid #218561;
+  border: 1px solid #2a9a6e;
   box-shadow: none;
 }
 
 #btn-select-excel:hover {
-  background: #1f7756;
+  background: #24855f;
+  border-color: #24855f;
 }
 
 /* 입고/검수 변환 버튼 전용 (연한 레드 톤) */
 #btn-process,
 #btn-verify {
-  background: #ef4444;
+  background: #f87171;
   color: #ffffff;
-  border: 1px solid #ef4444;
+  border: 1px solid #f87171;
   box-shadow: none;
 }
 
 #btn-process:hover,
 #btn-verify:hover {
-  background: #dc2626;
+  background: #e35d5d;
+  border-color: #e35d5d;
 }
 
 .btn-wide {
@@ -1177,16 +1229,16 @@
 
 .action-group-fixed .btn-primary,
 .action-group-fixed .btn-secondary {
-  background: #0ea5e9;
+  background: #38bdf8;
   color: #ffffff;
-  border: 1px solid #0ea5e9;
+  border: 1px solid #38bdf8;
   box-shadow: none;
 }
 
 .action-group-fixed .btn-primary:hover,
 .action-group-fixed .btn-secondary:hover {
-  background: #0284c7;
-  border-color: #0284c7;
+  background: #0ea5e9;
+  border-color: #0ea5e9;
   transform: translateY(-1px);
 }
 
