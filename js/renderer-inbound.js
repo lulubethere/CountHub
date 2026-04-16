@@ -1064,10 +1064,6 @@ if (checkVerify.ok) {
       }
 
       const columnMap = getColumnMap();
-      if (!columnMap.productName || !columnMap.qty) {
-        showToast("상품명과 입고예정수량 열을 확인해주세요.", true);
-        return;
-      }
 
       btnProcess.disabled = true;
       btnProcess.textContent = "처리 중...";

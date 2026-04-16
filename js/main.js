@@ -532,7 +532,7 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
       templatePath, // 사용자가 선택한 양식 경로 (없을 수 있음)
       sellerPath,
       centerData,
-      columnMap,
+      columnMap = {},
     } = payload;
 
     const templateWorkbook = new ExcelJS.Workbook();
@@ -590,6 +590,60 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
         .replace(/[\/\\:*?"<>|]/g, "_");
     };
 
+    const normalizeHeader = (val) =>
+      String(val || "")
+        .trim()
+        .toUpperCase()
+        .replace(/\s+/g, "");
+
+    const mapHeaderCell = (headerText, map, colNumber) => {
+      if (!map.sku && headerText.includes("SKU")) map.sku = colNumber;
+      if (!map.name && headerText.includes("상품명")) map.name = colNumber;
+      if (!map.expiry && headerText.includes("유통기한")) map.expiry = colNumber;
+      if (
+        !map.lot &&
+        (headerText.includes("LOT") || headerText.includes("로트"))
+      ) {
+        map.lot = colNumber;
+      }
+      if (
+        !map.qty &&
+        (headerText.includes("입고예정수량") ||
+          headerText.includes("예정수량") ||
+          headerText.includes("수량") ||
+          headerText.includes("QTY") ||
+          headerText.includes("QUANTITY"))
+      ) {
+        map.qty = colNumber;
+      }
+    };
+
+    const findProductHeader = (sheet, minScore = 2) => {
+      let best = null;
+
+      sheet.eachRow((row, rowNum) => {
+        const cols = {
+          sku: null,
+          expiry: null,
+          lot: null,
+          qty: null,
+          name: null,
+        };
+
+        row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+          mapHeaderCell(normalizeHeader(getCellValue(cell)), cols, colNumber);
+        });
+
+        const score = Object.values(cols).filter(Boolean).length;
+        if (score < minScore || !cols.name) return;
+        if (!best || score > best.score || (score === best.score && rowNum > best.rowNum)) {
+          best = { rowNum, cols, score };
+        }
+      });
+
+      return best;
+    };
+
     const safeDate =
       centerData.dateValue && centerData.dateValue.trim() !== ""
         ? centerData.dateValue.replace(/[\/\\:*?"<>|]/g, "-")
@@ -621,59 +675,62 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
       if (colNumber > lastHeaderCol) lastHeaderCol = colNumber;
     });
 
-    // [추가] 입고파일 양식 내 sku/expiry/lot/qty/name 헤더 위치 찾기
-    const inboundCols = {
-      sku: null,
-      expiry: null,
-      lot: null,
-      qty: null,
-      name: null,
-    };
-    let maxHeaderRow = 1;
+    // [추가] 입고파일 양식 내 상품 헤더 행 찾기
+    const inboundHeader = findProductHeader(targetSheet, 2);
+    if (!inboundHeader) {
+      throw new Error("입고파일 양식에서 상품명 헤더 행을 찾을 수 없습니다.");
+    }
 
-    targetSheet.eachRow((row, rowNum) => {
-      row.eachCell((cell) => {
-        const raw = String(getCellValue(cell)).trim();
-        if (!raw) return;
-
-        const noSpace = raw.replace(/\s+/g, "");
-
-        if (!inboundCols.sku && noSpace.includes("SKU")) {
-          inboundCols.sku = cell.col;
-          maxHeaderRow = Math.max(maxHeaderRow, rowNum);
-        }
-        if (!inboundCols.expiry && noSpace.includes("유통기한")) {
-          inboundCols.expiry = cell.col;
-          maxHeaderRow = Math.max(maxHeaderRow, rowNum);
-        }
-        if (!inboundCols.lot && noSpace.includes("LOT")) {
-          inboundCols.lot = cell.col;
-          maxHeaderRow = Math.max(maxHeaderRow, rowNum);
-        }
-        if (!inboundCols.qty && noSpace.includes("수량")) {
-          inboundCols.qty = cell.col;
-          maxHeaderRow = Math.max(maxHeaderRow, rowNum);
-        }
-        if (!inboundCols.name && noSpace.includes("상품명")) {
-          inboundCols.name = cell.col;
-          maxHeaderRow = Math.max(maxHeaderRow, rowNum);
-        }
-      });
+    const inboundCols = inboundHeader.cols;
+    const dataStartRow = inboundHeader.rowNum + 1;
+    const inboundHeaderRow = targetSheet.getRow(inboundHeader.rowNum);
+    inboundHeaderRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+      if (colNumber > lastHeaderCol) lastHeaderCol = colNumber;
     });
 
-    const dataStartRow = maxHeaderRow + 1;
+    // 셀러 파일도 고정 열 대신 헤더 행을 찾아 그 다음 행부터 읽는다.
+    const sellerHeader = findProductHeader(sellerSheet, 2);
+    const sourceCols = {
+      sku: sellerHeader?.cols.sku || columnMap.sku || null,
+      productName: sellerHeader?.cols.name || columnMap.productName || null,
+      expiry: sellerHeader?.cols.expiry || columnMap.expiry || null,
+      lot: sellerHeader?.cols.lot || columnMap.lot || null,
+      qty: sellerHeader?.cols.qty || columnMap.qty || null,
+    };
+    const sellerDataStartRow = sellerHeader ? sellerHeader.rowNum + 1 : 2;
+
+    if (!sourceCols.productName || !sourceCols.qty) {
+      throw new Error(
+        "입고예정엑셀파일에서 상품명/수량 헤더를 찾을 수 없습니다.",
+      );
+    }
 
     // 4️⃣ 데이터 추출 및 합산 (메모리 최적화: 추출과 동시에 매핑 준비)
     const startRow = dataStartRow;
     const checkSelect = (val) => (val === "선택" ? "" : val);
+    const currentLastRow = targetSheet.actualRowCount;
 
-    for (let i = 2; i <= sellerSheet.rowCount; i++) {
+    for (
+      let i = startRow;
+      i <= Math.max(currentLastRow, startRow + 500);
+      i++
+    ) {
+      const row = targetSheet.getRow(i);
+      row.values = [];
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.border = {};
+      });
+    }
+
+    let nextTargetRow = startRow;
+    for (let i = sellerDataStartRow; i <= sellerSheet.rowCount; i++) {
       const sRow = sellerSheet.getRow(i);
-      const name = getCellValue(sRow.getCell(columnMap.productName));
+      const name = getCellValue(sRow.getCell(sourceCols.productName));
 
       if (!name || String(name).trim() === "") continue;
 
-      const targetRowNum = Math.max(startRow, targetSheet.actualRowCount + 1);
+      const targetRowNum = nextTargetRow;
+      nextTargetRow += 1;
       const tRow = targetSheet.getRow(targetRowNum);
 
       // 값이 있을 때만 타겟 셀에 넣어주는 함수
@@ -687,12 +744,12 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
       };
 
       // 사용 예시
-      if (inboundCols.sku) safeMap(inboundCols.sku, columnMap.sku);
-      if (inboundCols.expiry) safeMap(inboundCols.expiry, columnMap.expiry);
-      if (inboundCols.lot) safeMap(inboundCols.lot, columnMap.lot);
+      if (inboundCols.sku) safeMap(inboundCols.sku, sourceCols.sku);
+      if (inboundCols.expiry) safeMap(inboundCols.expiry, sourceCols.expiry);
+      if (inboundCols.lot) safeMap(inboundCols.lot, sourceCols.lot);
       if (inboundCols.qty)
         tRow.getCell(inboundCols.qty).value = getCellValue(
-          sRow.getCell(columnMap.qty),
+          sRow.getCell(sourceCols.qty),
         );
       if (inboundCols.name) tRow.getCell(inboundCols.name).value = name;
 
