@@ -192,7 +192,7 @@
                   <!-- <span id="inbound-template-badge" class="template-badge">( 기본양식 적용 ❌ )</span> -->
                 </div>
                 <div class="upload-row">
-                  <button id="btn-select-verify-file" class="btn-outline">입고검수파일양식 엑셀첨부 (.xlsx .xls)</button>
+                  <button id="btn-select-verify-file" class="btn-outline">검수파일양식 엑셀첨부 (.xlsx .xls)</button>
                   <!-- <span id="verify-template-badge" class="template-badge">( 기본양식 적용 ❌ )</span> -->
                 </div>
               </div>
@@ -406,6 +406,15 @@
         <button id="confirm-cancel" class="btn-outline">취소</button>
         <button id="confirm-ok" class="btn-danger">삭제</button>
       </div>
+    </div>
+  </div>
+
+  <div id="loading-overlay" class="loading-overlay" aria-hidden="true">
+    <div class="loading-backdrop"></div>
+    <div class="loading-card" role="status" aria-live="polite">
+      <div class="loading-spinner"></div>
+      <div class="loading-title">작업 진행 중</div>
+      <div class="loading-text">파일을 처리하고 있습니다. 잠시만 기다려주세요.</div>
     </div>
   </div>
 

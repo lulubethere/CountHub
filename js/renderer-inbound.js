@@ -1001,12 +1001,34 @@ if (checkVerify.ok) {
       closeSettingsModal();
     });
 
+    const activeToasts = [];
+    const loadingOverlay = document.getElementById("loading-overlay");
+
+    function setLoadingState(isLoading) {
+      if (!loadingOverlay) return;
+      loadingOverlay.classList.toggle("is-open", isLoading);
+      loadingOverlay.setAttribute("aria-hidden", isLoading ? "false" : "true");
+      document.body.style.overflow = isLoading ? "hidden" : "";
+    }
+
     // 토스트 알림 공통 함수
     function showToast(msg, isError = false) {
-      Toastify({
+      while (activeToasts.length >= 2) {
+        const oldestToast = activeToasts.shift();
+        oldestToast?.hideToast?.();
+      }
+
+      const toast = Toastify({
         text: msg, duration: 3000, gravity: "bottom", position: "right", close: true,
         style: { background: "#ffffff", color: "#333", borderLeft: isError ? "5px solid #ff4d4f" : "5px solid #000", borderRadius: "8px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" },
-      }).showToast();
+        callback: function () {
+          const idx = activeToasts.indexOf(toast);
+          if (idx !== -1) activeToasts.splice(idx, 1);
+        },
+      });
+
+      activeToasts.push(toast);
+      toast.showToast();
     }
 
     // 컬럼 맵핑 수집 함수
@@ -1035,22 +1057,29 @@ if (checkVerify.ok) {
 
       btnVerify.disabled = true;
       btnVerify.textContent = "처리 중...";
+      setLoadingState(true);
 
-      const result = await ipcRenderer.invoke("process-verify-file", {
-        verifyPath: verifyExcelPath,
-        sellerPath: sellerExcelPath,
-        sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "",
-        shopName: selShop?.options[selShop.selectedIndex]?.text || "",
-        releaseCenter: inputReleaseCenter?.value || "",
-        dateValue: dateInput?.value || "",
-        columnMap,
-      });
-      btnVerify.disabled = false;
-      btnVerify.textContent = "입고검수파일 작업";
-      if (result.ok) {
-        showToast("검수 완료!\n저장경로: " + result.path);
-      } else {
-        showToast(result.error, true);
+      try {
+        const result = await ipcRenderer.invoke("process-verify-file", {
+          verifyPath: verifyExcelPath,
+          sellerPath: sellerExcelPath,
+          sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "",
+          shopName: selShop?.options[selShop.selectedIndex]?.text || "",
+          releaseCenter: inputReleaseCenter?.value || "",
+          dateValue: dateInput?.value || "",
+          columnMap,
+        });
+        if (result.ok) {
+          showToast("검수파일 작업 완료!");
+        } else {
+          showToast(result.error, true);
+        }
+      } catch (err) {
+        showToast("작업 도중 에러가 발생했습니다.", true);
+      } finally {
+        btnVerify.disabled = false;
+        btnVerify.textContent = "입고검수파일 작업";
+        setLoadingState(false);
       }
     });
 
@@ -1064,9 +1093,14 @@ if (checkVerify.ok) {
       }
 
       const columnMap = getColumnMap();
+      if (!columnMap.productName || !columnMap.qty) {
+        showToast("상품명과 입고예정수량 열을 확인해주세요.", true);
+        return;
+      }
 
       btnProcess.disabled = true;
       btnProcess.textContent = "처리 중...";
+      setLoadingState(true);
 
       try {
         const result = await ipcRenderer.invoke("process-inbound-file", {
@@ -1083,7 +1117,7 @@ if (checkVerify.ok) {
         });
 
         if (result.ok) {
-          showToast("입고파일 작업이 완료되었습니다!\n" + result.path);
+          showToast("입고파일 작업 완료!");
         } else {
           showToast(result.error, true);
         }
@@ -1092,6 +1126,7 @@ if (checkVerify.ok) {
       } finally {
         btnProcess.disabled = false;
         btnProcess.textContent = "입고파일 작업";
+        setLoadingState(false);
       }
     });
 

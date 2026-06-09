@@ -384,6 +384,74 @@
   display: flex;
 }
 
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 2600;
+}
+
+.loading-overlay.is-open {
+  display: flex;
+}
+
+.loading-backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.32), transparent 42%),
+    rgba(15, 23, 42, 0.34);
+  backdrop-filter: blur(6px);
+}
+
+.loading-card {
+  position: relative;
+  z-index: 1;
+  width: min(360px, calc(100vw - 32px));
+  padding: 28px 30px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.loading-spinner {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  border: 4px solid rgba(15, 23, 42, 0.1);
+  border-top-color: #1f6feb;
+  border-right-color: #0f172a;
+  animation: loading-spin 0.85s linear infinite;
+}
+
+.loading-title {
+  margin-top: 18px;
+  color: #0f172a;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.loading-text {
+  margin-top: 8px;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .modal-backdrop {
   position: absolute;
   inset: 0;

@@ -1,20 +1,431 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html>
+
 <head>
   <meta charset="UTF-8">
-  <title>CountHub - 출고</title>
+  <title>CountHub - 입고</title>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
   <link rel="stylesheet" href="../style/common-style.css">
   <link rel="stylesheet" href="../style/outbound-style.css">
   <link rel="stylesheet" href="../style/main-style.css">
 </head>
+
 <body>
   <div class="screen">
     <div id="app-header"></div>
-    <div class="main-content">
-      <p class="page-desc">출고 화면입니다. 여기에 출고 관련 UI를 구성하세요.</p>
+
+    <main class="inbound-page">
+      <div class="page-shell">
+        <header class="page-hero">
+          <div class="hero-left">
+            <h2 class="page-title">출고 관리</h2>
+          </div>
+          <div class="hero-right">
+            <div class="hero-stat hero-stat-reset">
+              <button id="btn-reset" class="btn-secondary">초기화</button>
+            </div>
+            <div class="hero-stat hero-stat-reset">
+              <button id="btn-settings" class="btn-secondary">설정</button>
+            </div>
+          </div>
+        </header>
+
+        <section class="page-grid">
+          <div class="page-main">
+            <section class="panel highlight-panel">
+              <div class="panel-header split-header">
+                <div class="panel-title">
+                  <h3>출고 예정 파일</h3>
+                  <p class="panel-desc">출고 예정 파일을 선택하세요.</p>
+                </div>
+                <button id="btn-select-excel" class="btn-primary btn-wide">출고예정 엑셀파일 첨부 (.xlsx, .xls)</button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <h3>기본 정보</h3>
+                  <p class="panel-desc">출고 기본 정보를 입력하세요.</p>
+                </div>
+                <div class="panel-meta">
+                  <span class="meta-pill">필수 항목 *</span>
+                </div>
+              </div>
+
+              <div class="inbound-form">
+                <div class="grid-row">
+                  <div class="field">
+                    <div class="field-label">셀러</div>
+                    <div class="field-control">
+                      <select id="sel-seller">
+                        <option value="">선택</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">출고센터</div>
+                    <div class="field-control">
+                      <select id="sel-center">
+                        <option value="">선택</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">상품구분</div>
+                    <div class="field-control">
+                      <select id="sel-type">
+                        <option value="">선택</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">쇼핑몰</div>
+                    <div class="field-control">
+                      <select id="sel-shop">
+                        <option value="">선택</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">출고예정일</div>
+                    <div class="field-control">
+                      <input id="dateInput" type="text" inputmode="numeric" placeholder="YYYYMMDD" maxlength="8" />
+                      <div id="dateError" class="field-error">존재하지 않는 날짜입니다.</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="grid-row">
+                  <div class="field">
+                    <div class="field-label">SKU</div>
+                    <div class="field-control">
+                      <input id="sku" type="text" value="" maxlength="1">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label-must">상품명 *</div>
+                    <div class="field-control">
+                      <input id="product-name" type="text" value="" maxlength="1">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">유통기한</div>
+                    <div class="field-control">
+                      <input id="expiry" type="text" value="" maxlength="1">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">LOT</div>
+                    <div class="field-control">
+                      <input id="lot" type="text" value="" maxlength="1">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label-must">출고예정수량 *</div>
+                    <div class="field-control">
+                      <input id="expected-qty" type="text" value="" maxlength="1">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+                    <section class="panel action-panel">
+          <div class="panel-header split-header">
+            <div class="panel-title">
+              <h3>출고 파일 변환</h3>
+              <p class="panel-desc">파일 변환 작업을 실행하세요.</p>
+            </div>
+            <div class="action-group action-group-fixed">
+              <button id="btn-process" class="btn-primary">거래명세서 작업</button>
+              <button id="btn-verify" class="btn-secondary">검수파일 변환</button>
+            </div>
+          </div>
+        </section>
+          </div>
+
+          <aside class="page-side">
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <h3>입고센터</h3>
+                  <p class="panel-desc">입고센터를 선택하세요.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="field">
+                  <div class="field-control">
+                    <select id="sel-release-center" class="side-input">
+                      <option value="">선택</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <h3>양식지 선택</h3>
+                  <p class="panel-desc">사용할 양식지를 선택하세요.</p>
+                </div>
+              </div>
+              <div class="panel-body">
+                <div class="field">
+                  <div class="field-control">
+                    <select id="sel-template-sheet">
+                      <option value="">선택</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel side-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <h3>템플릿 업로드</h3>
+                  <p class="panel-desc">명세서/검수 템플릿을 선택하세요.</p>
+                </div>
+                <div class="panel-meta">
+                <span id="default-template-status" class="meta-pill status-missing">기본양식 미적용</span>
+                </div>
+              </div>
+              <div class="panel-body stack">
+                <div class="upload-row">
+                  <button id="btn-select-inbound-file" class="btn-outline">입고파일양식 엑셀첨부 (.xlsx .xls)</button>
+                  <!-- <span id="inbound-template-badge" class="template-badge">( 기본양식 적용 ❌ )</span> -->
+                </div>
+                <div class="upload-row">
+                  <button id="btn-select-verify-file" class="btn-outline">검수파일양식 엑셀첨부 (.xlsx .xls)</button>
+                  <!-- <span id="verify-template-badge" class="template-badge">( 기본양식 적용 ❌ )</span> -->
+                </div>
+              </div>
+            </section>
+          </aside>
+        </section>
+
+        <!-- <section class="panel action-panel">
+          <div class="panel-header split-header">
+            <div class="panel-title">
+              <h3>입고 작업</h3>
+              <p class="panel-desc">파일 작업과 검수 작업을 실행하세요.</p>
+            </div>
+            <div class="action-group">
+              <button id="btn-process" class="btn-primary">입고 파일 작업</button>
+              <button id="btn-verify" class="btn-secondary">입고 검수파일 작업</button>
+            </div>
+          </div>
+        </section> -->
+      </div>
+    </main>
+  </div>
+
+  <div id="settings-modal" class="modal-overlay" aria-hidden="true">
+    <div class="modal-backdrop" id="settings-modal-backdrop"></div>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title" tabindex="-1">
+      <div class="modal-header">
+        <div>
+          <h3 id="settings-modal-title">설정</h3>
+        </div>
+      </div>
+      <div class="modal-body modal-layout">
+        <aside class="settings-nav">
+          <button class="settings-nav-item is-active" data-section="db">DB</button>
+          <button class="settings-nav-item" data-section="columns">양식지 컬럼</button>
+          <button class="settings-nav-item" data-section="sellerform">셀러-양식지</button>
+          <button class="settings-nav-item" data-section="template">템플릿 기본양식</button>
+        </aside>
+        <div class="settings-content">
+          <section class="modal-section settings-section is-active" data-section="db">
+            <div class="db-manager">
+              <div class="db-tabs">
+                <button class="db-tab is-active" data-tab="seller">셀러</button>
+                <button class="db-tab" data-tab="center">입고센터</button>
+                <button class="db-tab" data-tab="type">상품구분</button>
+                <button class="db-tab" data-tab="shop">쇼핑몰</button>
+                <button class="db-tab" data-tab="form">양식지</button>
+              </div>
+              <div class="db-content">
+                <div class="db-list-panel">
+                  <div class="db-list-header">
+                    <div class="db-list-title">목록</div>
+                    <button id="db-btn-add" class="btn-outline">추가</button>
+                  </div>
+                  <div class="db-list-hint">드래그로 순서를 바꾸면 자동으로 1부터 정렬됩니다.</div>
+                  <div class="db-list" id="db-list"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="modal-section settings-section" data-section="template">
+            <div class="template-panel">
+              <div class="template-header">
+                <div>
+                <div class="template-title">템플릿 기본양식</div>
+                  <p class="template-subtitle">아래 버튼에 파일을 끌어다 놓거나 클릭해서 업로드하세요.</p>
+                </div>
+                <div class="template-note">드래그/클릭 업로드</div>
+              </div>
+              <div class="template-list template-list-row">
+                <div class="template-card">
+                  <div class="template-card-header">
+                    <div class="template-label">입고파일 기본양식</div>
+                  </div>
+                  <div class="template-fileline">
+                    <span class="template-filename has-delete" id="default-inbound-name" data-empty="true">
+                      <span class="template-filename-text"></span>
+                      <button id="btn-default-inbound-delete" class="template-delete" style="display: none;" aria-label="삭제">x</button>
+                    </span>
+                  </div>
+                  <button id="btn-default-inbound" class="btn-outline template-upload-btn">파일 드롭 또는 클릭 업로드</button>
+                </div>
+                <div class="template-card">
+                  <div class="template-card-header">
+                    <div class="template-label">입고검수파일 기본양식</div>
+                  </div>
+                  <div class="template-fileline">
+                    <span class="template-filename has-delete" id="default-verify-name" data-empty="true">
+                      <span class="template-filename-text"></span>
+                      <button id="btn-default-verify-delete" class="template-delete" style="display: none;" aria-label="삭제">x</button>
+                    </span>
+                  </div>
+                  <button id="btn-default-verify" class="btn-outline template-upload-btn">파일 드롭 또는 클릭 업로드</button>
+                </div>
+              </div>
+              <div class="template-hint">지원 형식: .xlsx, .xls</div>
+            </div>
+          </section>
+
+          <section class="modal-section settings-section" data-section="columns">
+            <div class="columns-panel">
+              <div class="columns-header">
+                <div>
+                  <div class="columns-title">양식지 컬럼 설정</div>
+                  <p class="columns-subtitle">양식지를 선택하면 컬럼이 자동으로 매핑됩니다.</p>
+                </div>
+              </div>
+              <div class="columns-body">
+                <div class="field">
+                  <div class="field-label">양식지 선택</div>
+                  <div class="field-control">
+                    <select id="sel-form-columns">
+                      <option value="">선택</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="columns-grid">
+                  <div class="field">
+                    <div class="field-label">SKU</div>
+                    <div class="field-control">
+                      <input id="col-sku" type="text" maxlength="3" placeholder="예: A">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label-must">상품명 *</div>
+                    <div class="field-control">
+                      <input id="col-name" type="text" maxlength="3" placeholder="예: B">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">유통기한</div>
+                    <div class="field-control">
+                      <input id="col-expiry" type="text" maxlength="3" placeholder="예: C">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">LOT</div>
+                    <div class="field-control">
+                      <input id="col-lot" type="text" maxlength="3" placeholder="예: D">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label-must">입고예정수량 *</div>
+                    <div class="field-control">
+                      <input id="col-qty" type="text" maxlength="3" placeholder="예: E">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="modal-section settings-section" data-section="sellerform">
+            <div class="columns-panel link-panel">
+              <div class="columns-header">
+                <div>
+                  <div class="columns-title">셀러-양식지 연결</div>
+                  <p class="columns-subtitle">셀러별 기본 양식지를 지정하면 자동으로 선택됩니다.</p>
+                </div>
+              </div>
+              <div class="link-flow">
+                <div class="link-card">
+                  <div class="link-label">셀러</div>
+                  <div class="field-control">
+                    <select id="sel-link-seller">
+                      <option value="">선택</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="link-arrow" aria-hidden="true">⟷</div>
+                <div class="link-card">
+                  <div class="link-label">양식지</div>
+                  <div class="field-control">
+                    <select id="sel-link-form">
+                      <option value="">선택</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div class="link-hint">양식지 선택을 비워두면 연결이 해제됩니다.</div>
+            </div>
+          </section>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="settings-cancel" class="btn-outline">취소</button>
+        <button id="settings-save" class="btn-primary">저장</button>
+      </div>
     </div>
   </div>
+
+  <div id="db-add-modal" class="mini-modal" aria-hidden="true">
+    <div class="mini-modal-card" tabindex="-1">
+      <div class="mini-modal-title">새 항목 등록</div>
+      <div class="mini-modal-body">
+        <input id="db-add-input" class="mock-input" type="text" placeholder="이름 입력">
+      </div>
+      <div class="mini-modal-actions">
+        <button id="db-add-cancel" class="btn-outline">취소</button>
+        <button id="db-add-confirm" class="btn-primary">등록</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirm-modal" class="mini-modal" aria-hidden="true">
+    <div class="mini-modal-card" tabindex="-1">
+      <div id="confirm-title" class="mini-modal-title">삭제 확인</div>
+      <div id="confirm-message" class="mini-modal-body confirm-message">삭제하시겠습니까?</div>
+      <div class="mini-modal-actions confirm-actions">
+        <button id="confirm-cancel" class="btn-outline">취소</button>
+        <button id="confirm-ok" class="btn-danger">삭제</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading-overlay" class="loading-overlay" aria-hidden="true">
+    <div class="loading-backdrop"></div>
+    <div class="loading-card" role="status" aria-live="polite">
+      <div class="loading-spinner"></div>
+      <div class="loading-title">작업 진행 중</div>
+      <div class="loading-text">파일을 처리하고 있습니다. 잠시만 기다려주세요.</div>
+    </div>
+  </div>
+
   <script src="../js/header.js"></script>
   <script src="../js/renderer-outbound.js"></script>
 </body>
+
 </html>

@@ -291,6 +291,32 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
       return cell.value;
     }
 
+    function formatBarcodeRichText(value, baseFont = {}) {
+      const barcode = String(value || "");
+      if (!barcode) return "";
+
+      const splitIndex = Math.max(0, barcode.length - 4);
+      const head = barcode.slice(0, splitIndex);
+      const tail = barcode.slice(splitIndex);
+      const richText = [];
+      const baseSize =
+        typeof baseFont.size === "number" ? baseFont.size : undefined;
+
+      if (head) richText.push({ text: head });
+      if (tail) {
+        richText.push({
+          text: tail,
+          font: {
+            ...baseFont,
+            bold: true,
+            ...(baseSize ? { size: baseSize + 1 } : {}),
+          },
+        });
+      }
+
+      return { richText };
+    }
+
     // 1️⃣ 파일 로드
     if (verifyPath && verifyPath !== "") {
       await loadWorkbook(verifyWorkbook, verifyPath);
@@ -314,6 +340,8 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
       qty: null,
     };
 
+    const dateLabels = ["입고예정일", "출고예정일"];
+    const centerLabels = ["입고센터", "출고센터"];
     let commonCells = { seller: null, shop: null, date: null };
     let startDataRow = 3;
 
@@ -332,8 +360,8 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
         if (val.includes("수량")) targetCols.qty = cell.col;
         if (val.includes("셀러")) commonCells.seller = cell.address;
         if (val.includes("쇼핑몰")) commonCells.shop = cell.address;
-        if (val.includes("입고예정일")) commonCells.date = cell.address;
-        if (val.includes("출고센터")) commonCells.releaseCenter = cell.address;
+        if (dateLabels.includes(val.trim())) commonCells.date = cell.address;
+        if (centerLabels.includes(val.trim())) commonCells.releaseCenter = cell.address;
       });
       if (targetCols.name && startDataRow === 3) startDataRow = rowNum + 1;
     });
@@ -350,7 +378,7 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
       const val = String(getCellValue(cell)).replace(/\s+/g, "");
 
       if (val.includes("바코드")) sellerBarcodeCol = cell.col;
-      if (val.includes("PLT") || val.includes("plt")) sellerPltCol = cell.col;
+      if (val.includes("PLT") || val.includes("plt") || val.includes("팔레트NO")) sellerPltCol = cell.col;
     });
 
 for (let i = 2; i <= sellerSheet.rowCount; i++) {
@@ -372,8 +400,6 @@ for (let i = 2; i <= sellerSheet.rowCount; i++) {
   let barcode = sellerBarcodeCol
     ? String(getCellValue(row.getCell(sellerBarcodeCol)))
     : "";
-
-  if (barcode.length > 4) barcode = barcode.slice(-4);
 
   // ✅ 핵심: 값이 없어도 파이프(|) 기호는 유지되어 고유 키가 생성됩니다.
   const key = `${plt}|${sku}|${name}|${lot}|${expiry}`;
@@ -457,7 +483,10 @@ for (let i = 2; i <= sellerSheet.rowCount; i++) {
   if (targetCols.plt) row.getCell(targetCols.plt).value = data.plt || "";
   if (targetCols.sku) row.getCell(targetCols.sku).value = data.sku || "";
   if (targetCols.name) row.getCell(targetCols.name).value = data.name || "";
-  if (targetCols.barcode) row.getCell(targetCols.barcode).value = data.barcode || "";
+  if (targetCols.barcode) {
+    const barcodeCell = row.getCell(targetCols.barcode);
+    barcodeCell.value = formatBarcodeRichText(data.barcode, barcodeCell.font || {});
+  }
   if (targetCols.lot) row.getCell(targetCols.lot).value = data.lot || "";
   if (targetCols.expiry) row.getCell(targetCols.expiry).value = data.expiry || "";
   if (targetCols.qty) row.getCell(targetCols.qty).value = data.qty || 0;
@@ -513,7 +542,7 @@ for (let i = 2; i <= sellerSheet.rowCount; i++) {
     });
 
     if (canceled || !filePath) {
-      return { ok: false, error: "저장이 취소되었습니다." };
+      return { ok: false, error: "작업이 취소되었습니다." };
     }
 
     await verifyWorkbook.xlsx.writeFile(filePath);
@@ -669,7 +698,7 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
       if (val.includes("셀러")) colMap.seller = colNumber;
       if (val.includes("입고센터")) colMap.inbound = colNumber;
       if (val.includes("상품구분")) colMap.type = colNumber;
-      if (val.includes("예정일")) colMap.date = colNumber;
+      if (dateLabels.includes(val.trim())) colMap.date = colNumber;
       if (val.includes("쇼핑몰")) colMap.shop = colNumber;
 
       if (colNumber > lastHeaderCol) lastHeaderCol = colNumber;
@@ -802,7 +831,7 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
     });
 
     if (canceled || !filePath)
-      return { ok: false, error: "저장이 취소되었습니다." };
+      return { ok: false, error: "작업이 취소되었습니다." };
 
     await templateWorkbook.xlsx.writeFile(filePath);
 
