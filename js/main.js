@@ -6,6 +6,7 @@ const ExcelJS = require("exceljs");
 const XLSX = require("xlsx");
 
 let mainWindow;
+const DATE_LABELS = ["입고예정일", "출고예정일"];
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -340,7 +341,6 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
       qty: null,
     };
 
-    const dateLabels = ["입고예정일", "출고예정일"];
     const centerLabels = ["입고센터", "출고센터"];
     let commonCells = { seller: null, shop: null, date: null };
     let startDataRow = 3;
@@ -360,7 +360,7 @@ ipcMain.handle("process-verify-file", async (_, payload) => {
         if (val.includes("수량")) targetCols.qty = cell.col;
         if (val.includes("셀러")) commonCells.seller = cell.address;
         if (val.includes("쇼핑몰")) commonCells.shop = cell.address;
-        if (dateLabels.includes(val.trim())) commonCells.date = cell.address;
+        if (DATE_LABELS.includes(val.trim())) commonCells.date = cell.address;
         if (centerLabels.includes(val.trim())) commonCells.releaseCenter = cell.address;
       });
       if (targetCols.name && startDataRow === 3) startDataRow = rowNum + 1;
@@ -627,8 +627,18 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
 
     const mapHeaderCell = (headerText, map, colNumber) => {
       if (!map.sku && headerText.includes("SKU")) map.sku = colNumber;
-      if (!map.name && headerText.includes("상품명")) map.name = colNumber;
-      if (!map.expiry && headerText.includes("유통기한")) map.expiry = colNumber;
+      if (
+        !map.name &&
+        (headerText.includes("상품명") || headerText.includes("품목명"))
+      ) {
+        map.name = colNumber;
+      }
+      if (
+        !map.expiry &&
+        (headerText.includes("유통기한") || headerText.includes("유효일자"))
+      ) {
+        map.expiry = colNumber;
+      }
       if (
         !map.lot &&
         (headerText.includes("LOT") || headerText.includes("로트"))
@@ -665,7 +675,7 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
 
         const score = Object.values(cols).filter(Boolean).length;
         if (score < minScore || !cols.name) return;
-        if (!best || score > best.score || (score === best.score && rowNum > best.rowNum)) {
+        if (!best || score > best.score) {
           best = { rowNum, cols, score };
         }
       });
@@ -698,7 +708,7 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
       if (val.includes("셀러")) colMap.seller = colNumber;
       if (val.includes("입고센터")) colMap.inbound = colNumber;
       if (val.includes("상품구분")) colMap.type = colNumber;
-      if (dateLabels.includes(val.trim())) colMap.date = colNumber;
+      if (DATE_LABELS.includes(val.trim())) colMap.date = colNumber;
       if (val.includes("쇼핑몰")) colMap.shop = colNumber;
 
       if (colNumber > lastHeaderCol) lastHeaderCol = colNumber;
@@ -717,20 +727,19 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
       if (colNumber > lastHeaderCol) lastHeaderCol = colNumber;
     });
 
-    // 셀러 파일도 고정 열 대신 헤더 행을 찾아 그 다음 행부터 읽는다.
-    const sellerHeader = findProductHeader(sellerSheet, 2);
+    // 셀러 파일은 화면에서 입력한 열 문자 기준으로 읽는다.
     const sourceCols = {
-      sku: sellerHeader?.cols.sku || columnMap.sku || null,
-      productName: sellerHeader?.cols.name || columnMap.productName || null,
-      expiry: sellerHeader?.cols.expiry || columnMap.expiry || null,
-      lot: sellerHeader?.cols.lot || columnMap.lot || null,
-      qty: sellerHeader?.cols.qty || columnMap.qty || null,
+      sku: columnMap.sku || null,
+      productName: columnMap.productName || null,
+      expiry: columnMap.expiry || null,
+      lot: columnMap.lot || null,
+      qty: columnMap.qty || null,
     };
-    const sellerDataStartRow = sellerHeader ? sellerHeader.rowNum + 1 : 2;
+    const sellerDataStartRow = 2;
 
     if (!sourceCols.productName || !sourceCols.qty) {
       throw new Error(
-        "입고예정엑셀파일에서 상품명/수량 헤더를 찾을 수 없습니다.",
+        "입고예정엑셀파일의 상품명/수량 열 문자를 확인해주세요.",
       );
     }
 
@@ -752,14 +761,18 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
     }
 
     let nextTargetRow = startRow;
+    let writtenRowCount = 0;
     for (let i = sellerDataStartRow; i <= sellerSheet.rowCount; i++) {
       const sRow = sellerSheet.getRow(i);
       const name = getCellValue(sRow.getCell(sourceCols.productName));
+      const qty = getCellValue(sRow.getCell(sourceCols.qty));
 
       if (!name || String(name).trim() === "") continue;
+      if (qty === undefined || qty === null || String(qty).trim() === "") continue;
 
       const targetRowNum = nextTargetRow;
       nextTargetRow += 1;
+      writtenRowCount += 1;
       const tRow = targetSheet.getRow(targetRowNum);
 
       // 값이 있을 때만 타겟 셀에 넣어주는 함수
@@ -805,6 +818,12 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
           right: { style: "thin" },
         };
       }
+    }
+
+    if (writtenRowCount === 0) {
+      throw new Error(
+        "입고예정엑셀파일에서 복사할 상품 데이터를 찾지 못했습니다. 상품명/수량 열 또는 헤더 행을 확인해주세요.",
+      );
     }
 
     // 5️⃣ 상품명(헤더 기준) 역순 정리
