@@ -1,12 +1,266 @@
 ﻿const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
+const { execFile } = require("child_process");
+const { pathToFileURL } = require("url");
 const db = require("./db.js");
 const fs = require("fs");
 const ExcelJS = require("exceljs");
 const XLSX = require("xlsx");
+const XlsxPopulate = require("xlsx-populate");
 
 let mainWindow;
 const DATE_LABELS = ["입고예정일", "출고예정일"];
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildStatementRowsHtml(rows) {
+  const body = rows
+    .map(
+      (row, idx) => `
+        <tr>
+          <td>${idx + 1}</td>
+          <td>${escapeHtml(row.sku)}</td>
+          <td>${escapeHtml(row.name)}</td>
+          <td>${escapeHtml(row.expiry)}</td>
+          <td>${escapeHtml(row.lot)}</td>
+          <td>${escapeHtml(row.barcode)}</td>
+          <td>${escapeHtml(row.qty)}</td>
+          <td>${escapeHtml(row.box)}</td>
+        </tr>`,
+    )
+    .join("");
+
+  return `
+    <table class="statement-table">
+      <thead>
+        <tr>
+          <th>No</th>
+          <th>SKU</th>
+          <th>상품명</th>
+          <th>유통기한</th>
+          <th>LOT</th>
+          <th>바코드</th>
+          <th>수량</th>
+          <th>박스</th>
+        </tr>
+      </thead>
+      <tbody>${body}</tbody>
+    </table>`;
+}
+
+function buildStatementMetaHtml(meta) {
+  return `
+    <div class="meta-grid">
+      <div><span class="meta-label">셀러</span><span class="meta-value">${escapeHtml(meta.sellerName)}</span></div>
+      <div><span class="meta-label">쇼핑몰</span><span class="meta-value">${escapeHtml(meta.shopName)}</span></div>
+      <div><span class="meta-label">출고예정일</span><span class="meta-value">${escapeHtml(meta.dateValue)}</span></div>
+      <div><span class="meta-label">입고지명</span><span class="meta-value">${escapeHtml(meta.inboundPlaceName)}</span></div>
+      <div><span class="meta-label">주소</span><span class="meta-value">${escapeHtml(meta.inboundAddress)}</span></div>
+      <div><span class="meta-label">담당자명</span><span class="meta-value">${escapeHtml(meta.inboundManager)}</span></div>
+      <div><span class="meta-label">전화번호</span><span class="meta-value">${escapeHtml(meta.inboundPhone)}</span></div>
+    </div>`;
+}
+
+function buildStatementPreviewHtml(previewPages, title) {
+  const pagesHtml = previewPages
+    .map((page, index) => {
+      const metaHtml = buildStatementMetaHtml(page.meta);
+      const tableHtml = buildStatementRowsHtml(page.rows);
+      const repeatedSection =
+        page.templateType === "h"
+          ? `<div class="repeat-block">${metaHtml}${tableHtml}</div>`
+          : "";
+
+      return `
+        <section class="page">
+          <div class="page-title">${escapeHtml(title)} - ${index + 1} / ${previewPages.length}</div>
+          <div class="sheet-badge">${page.templateType.toUpperCase()} Sheet Preview</div>
+          ${metaHtml}
+          ${tableHtml}
+          ${repeatedSection}
+        </section>`;
+    })
+    .join("");
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    body { margin: 0; font-family: Arial, sans-serif; background: #eef2f7; color: #111827; }
+    .toolbar { position: sticky; top: 0; z-index: 20; display: flex; justify-content: flex-end; gap: 8px; padding: 12px 16px; background: rgba(255,255,255,0.95); border-bottom: 1px solid #dbe2ea; }
+    .toolbar button { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid #d1d5db; background: #fff; cursor: pointer; font-weight: 700; }
+    .toolbar button.primary { background: #111827; color: #fff; border-color: #111827; }
+    .preview-wrap { padding: 18px; display: flex; flex-direction: column; gap: 18px; }
+    .page { width: 210mm; min-height: 297mm; margin: 0 auto; background: #fff; box-shadow: 0 10px 28px rgba(15, 23, 42, 0.12); padding: 12mm; box-sizing: border-box; }
+    .page-title { font-size: 18px; font-weight: 800; margin-bottom: 6px; }
+    .sheet-badge { display: inline-block; margin-bottom: 12px; padding: 4px 10px; border-radius: 999px; background: #fff7ed; color: #c2410c; font-size: 12px; font-weight: 700; }
+    .meta-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin-bottom: 14px; }
+    .meta-grid div { display: flex; gap: 8px; font-size: 12px; line-height: 1.5; }
+    .meta-label { min-width: 70px; font-weight: 700; color: #4b5563; }
+    .meta-value { flex: 1; border-bottom: 1px solid #d1d5db; padding-bottom: 2px; }
+    .statement-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 11px; }
+    .statement-table th, .statement-table td { border: 1px solid #1f2937; padding: 5px 6px; vertical-align: middle; word-break: break-word; }
+    .statement-table th { background: #f3f4f6; }
+    .repeat-block { margin-top: 18px; padding-top: 18px; border-top: 2px dashed #cbd5e1; }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none; }
+      .preview-wrap { padding: 0; gap: 0; }
+      .page { box-shadow: none; margin: 0; page-break-after: always; }
+      .page:last-child { page-break-after: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="window.close()">닫기</button>
+    <button class="primary" onclick="window.print()">인쇄</button>
+  </div>
+  <div class="preview-wrap">${pagesHtml}</div>
+</body>
+</html>`;
+}
+
+function openStatementPreviewWindow(previewPages, title) {
+  if (!previewPages || !previewPages.length) return null;
+  const previewWindow = new BrowserWindow({
+    width: 1200,
+    height: 900,
+    autoHideMenuBar: true,
+    webPreferences: {
+      contextIsolation: true,
+    },
+  });
+  previewWindow.loadURL(
+    `data:text/html;charset=UTF-8,${encodeURIComponent(
+      buildStatementPreviewHtml(previewPages, title),
+    )}`,
+  );
+  return previewWindow;
+}
+
+function exportExcelToPdf(xlsxPath, pdfPath) {
+  const scriptPath = path.join(app.getPath("temp"), "counthub-export-pdf.ps1");
+  const script = `
+param([string]$xlsxPath, [string]$pdfPath)
+$ErrorActionPreference = 'Stop'
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$excel = $null
+$workbook = $null
+
+try {
+  $xlsxPath = [System.IO.Path]::GetFullPath($xlsxPath)
+  $pdfPath = [System.IO.Path]::GetFullPath($pdfPath)
+
+  if (-not (Test-Path -LiteralPath $xlsxPath)) {
+    throw "입력 파일을 찾을 수 없습니다: $xlsxPath"
+  }
+
+  Start-Sleep -Milliseconds 300
+
+  $excel = New-Object -ComObject Excel.Application
+  $excel.Visible = $false
+  $excel.DisplayAlerts = $false
+
+  $workbook = $excel.Workbooks.Open($xlsxPath, 0, $true)
+  $xlTypePdf = 0
+  $workbook.ExportAsFixedFormat($xlTypePdf, $pdfPath)
+}
+finally {
+  if ($workbook -ne $null) {
+    $workbook.Close($false) | Out-Null
+    [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($workbook)
+  }
+  if ($excel -ne $null) {
+    $excel.Quit()
+    [void][System.Runtime.InteropServices.Marshal]::ReleaseComObject($excel)
+  }
+  [System.GC]::Collect()
+  [System.GC]::WaitForPendingFinalizers()
+}
+`;
+
+  fs.writeFileSync(scriptPath, script, "utf8");
+
+  return new Promise((resolve, reject) => {
+    execFile(
+      "powershell.exe",
+      [
+        "-NoProfile",
+        "-NonInteractive",
+        "-STA",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        scriptPath,
+        xlsxPath,
+        pdfPath,
+      ],
+      {
+        windowsHide: true,
+        maxBuffer: 1024 * 1024,
+        timeout: 120000,
+      },
+      (error, stdout, stderr) => {
+        if (error) {
+          const detail = String(stderr || stdout || error.message || "").trim();
+          reject(
+            new Error(
+              detail ||
+                "Excel PDF 변환에 실패했습니다. Microsoft Excel 설치 여부를 확인해주세요.",
+            ),
+          );
+          return;
+        }
+
+        resolve(pdfPath);
+      },
+    );
+  });
+}
+
+function openPdfPreviewWindow(pdfPath, title) {
+  const previewWindow = new BrowserWindow({
+    width: 1400,
+    height: 980,
+    autoHideMenuBar: true,
+    title,
+    webPreferences: {
+      contextIsolation: true,
+      plugins: true,
+    },
+  });
+
+  previewWindow.loadURL(pathToFileURL(pdfPath).toString());
+  return previewWindow;
+}
+
+function isBusyFileError(error) {
+  const code = String(error?.code || "").toUpperCase();
+  return code === "EBUSY" || code === "EPERM" || code === "EACCES";
+}
+
+async function saveWorkbookOrThrowBusy(workbook, targetPath) {
+  try {
+    await workbook.toFileAsync(targetPath);
+    return targetPath;
+  } catch (error) {
+    if (!isBusyFileError(error)) throw error;
+    throw new Error(
+      "같은 이름의 엑셀 파일이 현재 열려 있습니다. 파일을 닫은 뒤 다시 저장해주세요.",
+    );
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -881,6 +1135,306 @@ ipcMain.handle("process-inbound-file", async (_, payload) => {
   } catch (err) {
     console.error("입고파일 작업 에러:", err);
     return { ok: false, error: err.message };
+  }
+});
+
+ipcMain.handle("process-statement-file", async (_, payload) => {
+  try {
+    const {
+      sellerPath,
+      sellerName,
+      shopName,
+      dateValue,
+      inboundPlaceName,
+      inboundAddress,
+      inboundManager,
+      inboundPhone,
+      columnMap = {},
+    } = payload || {};
+
+    if (!sellerPath) {
+      return { ok: false, error: "출고 예정 파일 경로가 없습니다." };
+    }
+
+    const templateData = await db.getStatementExcelTemplate();
+    if (!templateData?.buffer) {
+      return { ok: false, error: "거래명세서 양식(id=3)이 등록되어 있지 않습니다." };
+    }
+
+    const loadWorkbook = async (workbook, filePath) => {
+      const ext = path.extname(filePath).toLowerCase();
+      if (ext === ".xls") {
+        const tempXls = XLSX.readFile(filePath);
+        const buffer = XLSX.write(tempXls, {
+          type: "buffer",
+          bookType: "xlsx",
+        });
+        await workbook.xlsx.load(buffer);
+      } else {
+        await workbook.xlsx.readFile(filePath);
+      }
+    };
+
+    const getCellValue = (cell) => {
+      if (!cell || cell.value === null || cell.value === undefined) return "";
+      if (typeof cell.value === "object" && cell.value !== null) {
+        if (cell.value.result !== undefined) return cell.value.result;
+        if (cell.value.richText) {
+          return cell.value.richText.map((t) => t.text).join("");
+        }
+      }
+      return cell.value;
+    };
+
+    const sourceWorkbook = new ExcelJS.Workbook();
+    await loadWorkbook(sourceWorkbook, sellerPath);
+    const sourceSheet = sourceWorkbook.worksheets[0];
+
+    if (!columnMap.productName || !columnMap.qty) {
+      return { ok: false, error: "상품명과 출고예정수량 열을 확인해주세요." };
+    }
+
+    let sourceBarcodeCol = null;
+    let sourceBoxCol = null;
+
+    sourceSheet.getRow(1).eachCell((cell) => {
+      const value = String(getCellValue(cell)).replace(/\s+/g, "");
+      if (value.includes("바코드")) sourceBarcodeCol = cell.col;
+      if (value.includes("박스")) sourceBoxCol = cell.col;
+    });
+
+    const statementRows = [];
+    for (let rowNumber = 2; rowNumber <= sourceSheet.rowCount; rowNumber++) {
+      const row = sourceSheet.getRow(rowNumber);
+      const name = getCellValue(row.getCell(columnMap.productName));
+      if (!name || String(name).trim() === "") continue;
+
+      statementRows.push({
+        sku: columnMap.sku ? getCellValue(row.getCell(columnMap.sku)) : "",
+        name: getCellValue(row.getCell(columnMap.productName)),
+        expiry: columnMap.expiry ? getCellValue(row.getCell(columnMap.expiry)) : "",
+        lot: columnMap.lot ? getCellValue(row.getCell(columnMap.lot)) : "",
+        barcode: sourceBarcodeCol ? getCellValue(row.getCell(sourceBarcodeCol)) : "",
+        qty: columnMap.qty ? getCellValue(row.getCell(columnMap.qty)) : "",
+        box: sourceBoxCol ? getCellValue(row.getCell(sourceBoxCol)) : "",
+      });
+    }
+
+    if (!statementRows.length) {
+      return { ok: false, error: "출고 예정 파일에서 상품 데이터를 찾지 못했습니다." };
+    }
+
+    const statementWorkbook = await XlsxPopulate.fromDataAsync(
+      Buffer.from(templateData.buffer),
+    );
+
+    const hSheet = statementWorkbook.sheet("h");
+    const fSheet = statementWorkbook.sheet("f");
+    if (!hSheet || !fSheet) {
+      return { ok: false, error: "거래명세서 양식에 h 또는 f 시트가 없습니다." };
+    }
+
+    const statementMeta = {
+      sellerName: sellerName || "",
+      shopName: shopName || "",
+      dateValue: dateValue || "",
+      inboundPlaceName: inboundPlaceName || "",
+      inboundAddress: inboundAddress || "",
+      inboundManager: inboundManager || "",
+      inboundPhone: inboundPhone || "",
+    };
+
+    const fillStatementSheet = (sheet, rows, maxRows) => {
+      sheet.cell("G2").value(statementMeta.sellerName);
+      sheet.cell("H2").value(statementMeta.shopName);
+      sheet.cell("B2").value(statementMeta.dateValue);
+      sheet.cell("G4").value(statementMeta.inboundPlaceName);
+      sheet.cell("G5").value(statementMeta.inboundAddress);
+      sheet.cell("G6").value(statementMeta.inboundManager);
+      sheet.cell("G7").value(statementMeta.inboundPhone);
+
+      for (let i = 0; i < maxRows; i++) {
+        const rowNumber = 10 + i;
+        sheet.cell(`C${rowNumber}`).value("");
+        sheet.cell(`D${rowNumber}`).value("");
+        sheet.cell(`E${rowNumber}`).value("");
+        sheet.cell(`F${rowNumber}`).value("");
+        sheet.cell(`G${rowNumber}`).value("");
+        sheet.cell(`H${rowNumber}`).value("");
+        sheet.cell(`I${rowNumber}`).value("");
+      }
+
+      rows.slice(0, maxRows).forEach((row, index) => {
+        const targetRow = 10 + index;
+        sheet.cell(`C${targetRow}`).value(row.sku ?? "");
+        sheet.cell(`D${targetRow}`).value(row.name ?? "");
+        sheet.cell(`E${targetRow}`).value(row.expiry ?? "");
+        sheet.cell(`F${targetRow}`).value(row.lot ?? "");
+        sheet.cell(`G${targetRow}`).value(row.barcode ?? "");
+        sheet.cell(`H${targetRow}`).value(row.qty ?? "");
+        sheet.cell(`I${targetRow}`).value(row.box ?? "");
+      });
+    };
+
+    const copyHSection = (sheet) => {
+      for (let sourceRow = 2; sourceRow <= 22; sourceRow++) {
+        const targetRow = sourceRow + 23;
+
+        for (let col = 2; col <= 9; col++) {
+          const sourceCell = sheet.cell(sourceRow, col);
+          const targetCell = sheet.cell(targetRow, col);
+          targetCell.value(sourceCell.value());
+        }
+      }
+    };
+
+    const toNumericValue = (value) => {
+      if (typeof value === "number") {
+        return Number.isFinite(value) ? value : 0;
+      }
+
+      const normalized = String(value ?? "")
+        .replace(/,/g, "")
+        .trim();
+      if (!normalized) return 0;
+
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const applyFTemplateBounds = (sourceSheet, targetSheet) => {
+      const sourceColumnJ = sourceSheet.column("J");
+      const targetColumnJ = targetSheet.column("J");
+      const columnWidth = sourceColumnJ.width();
+      if (typeof columnWidth === "number") {
+        targetColumnJ.width(columnWidth);
+      }
+      targetColumnJ.hidden(sourceColumnJ.hidden());
+
+      const sourceRow43 = sourceSheet.row(43);
+      const targetRow43 = targetSheet.row(43);
+      const rowHeight = sourceRow43.height();
+      if (typeof rowHeight === "number") {
+        targetRow43.height(rowHeight);
+      }
+      targetRow43.hidden(sourceRow43.hidden());
+
+      targetSheet.cell("J43").value("");
+      targetSheet.definedName(
+        "_xlnm.Print_Area",
+        targetSheet.range("A1:J43"),
+      );
+    };
+
+    const applyFPageMeta = (sheet, pageIndex, totalPages, totalQty, totalBox) => {
+      sheet.cell("B42").value(totalPages > 1 ? `${pageIndex}/${totalPages}` : "");
+      sheet.cell("H38").value(totalQty);
+      sheet.cell("I38").value(totalBox);
+    };
+
+    const chunkRows = (rows, size) => {
+      const chunks = [];
+      for (let i = 0; i < rows.length; i += size) {
+        chunks.push(rows.slice(i, i + size));
+      }
+      return chunks;
+    };
+
+    const previewPages = [];
+    const totalCount = statementRows.length;
+
+    if (totalCount <= 8) {
+      fillStatementSheet(hSheet, statementRows, 8);
+      copyHSection(hSheet);
+      statementWorkbook.deleteSheet(fSheet);
+      previewPages.push({
+        templateType: "h",
+        meta: statementMeta,
+        rows: statementRows,
+      });
+    } else {
+      const chunks = chunkRows(statementRows, 28);
+      const fTemplateClone = statementWorkbook.cloneSheet(fSheet, "__f_template__");
+      const totalQty = statementRows.reduce(
+        (sum, row) => sum + toNumericValue(row.qty),
+        0,
+      );
+      const totalBox = statementRows.reduce(
+        (sum, row) => sum + toNumericValue(row.box),
+        0,
+      );
+
+      fillStatementSheet(fSheet, chunks[0], 28);
+      applyFTemplateBounds(fTemplateClone, fSheet);
+      applyFPageMeta(fSheet, 1, chunks.length, totalQty, totalBox);
+      previewPages.push({
+        templateType: "f",
+        meta: statementMeta,
+        rows: chunks[0],
+      });
+
+      for (let i = 1; i < chunks.length; i++) {
+        const cloned = statementWorkbook.cloneSheet(
+          fTemplateClone,
+          `f_${i + 1}`,
+        );
+        fillStatementSheet(cloned, chunks[i], 28);
+        applyFTemplateBounds(fTemplateClone, cloned);
+        applyFPageMeta(cloned, i + 1, chunks.length, totalQty, totalBox);
+        previewPages.push({
+          templateType: "f",
+          meta: statementMeta,
+          rows: chunks[i],
+        });
+      }
+
+      statementWorkbook.deleteSheet(fTemplateClone);
+      statementWorkbook.deleteSheet(hSheet);
+    }
+
+    const today = new Date();
+    const formattedToday = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const safe = (value) =>
+      String(value || "")
+        .trim()
+        .replace(/[\/\\:*?"<>|]/g, "_");
+
+    const filenameParts = [
+      safe(sellerName),
+      safe(shopName),
+      "거래명세서",
+      safe(dateValue) || formattedToday,
+      safe(inboundPlaceName),
+    ].filter(Boolean);
+
+    const defaultFileName = `${filenameParts.join(" ")}.xlsx`;
+    const { filePath, canceled } = await dialog.showSaveDialog({
+      title: "거래명세서 저장",
+      defaultPath: path.join(app.getPath("downloads"), defaultFileName),
+      filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
+    });
+
+    if (canceled || !filePath) {
+      return { ok: false, error: "작업이 취소되었습니다." };
+    }
+
+    const savedPath = await saveWorkbookOrThrowBusy(statementWorkbook, filePath);
+
+    const pdfPath = savedPath.replace(/\.(xlsx|xls)$/i, ".pdf");
+    let warning = null;
+
+    try {
+      await exportExcelToPdf(savedPath, pdfPath);
+      openPdfPreviewWindow(pdfPath, "거래명세서 PDF 미리보기");
+    } catch (pdfError) {
+      console.error(pdfError);
+      warning = `거래명세서는 저장되었지만 PDF 미리보기를 열지 못했습니다. ${pdfError.message}`;
+    }
+
+    return { ok: true, path: savedPath, pdfPath, warning };
+  } catch (err) {
+    console.error(err);
+    return { ok: false, error: `거래명세서 작업 중 오류: ${err.message}` };
   }
 });
 

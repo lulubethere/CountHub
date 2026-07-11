@@ -275,6 +275,30 @@ async function getInboundExcelTemplate() {
   }
 }
 
+// 거래명세서양식 (id = 3)
+async function getStatementExcelTemplate() {
+  try {
+    const res = await query(
+      'SELECT excelfile, description FROM "ExcelFiles" WHERE id = 3',
+      [],
+    );
+
+    if (res.rows && res.rows.length > 0) {
+      const fileData = res.rows[0].excelfile;
+      const hasBuffer = fileData && Buffer.isBuffer(fileData) && fileData.length > 0;
+      if (!hasBuffer) return null;
+      return {
+        buffer: fileData,
+        filename: res.rows[0].description,
+      };
+    }
+    return null;
+  } catch (err) {
+    console.error("DB 쿼리 중 에러 발생:", err);
+    throw err;
+  }
+}
+
 /**
  * CodeMaster 목록 조회 (parent_code 기준)
  * @param {number} parentCode
@@ -543,6 +567,7 @@ module.exports = {
   getFormColumns,
   getInboundCheckTemplate,
   getInboundExcelTemplate,
+  getStatementExcelTemplate,
   updateExcelTemplate,
   deleteExcelTemplate,
 };

@@ -1080,6 +1080,51 @@
     }
 
     // --- [1. 출고 검수지 작업 버튼 (기존 검수파일 기능 연결)] ---
+    const btnStatement = document.getElementById("btn-statement");
+    btnStatement?.addEventListener("click", async function () {
+      if (!sellerExcelPath) {
+        showToast("출고 예정 엑셀파일을 먼저 선택해주세요.", true);
+        return;
+      }
+
+      const columnMap = getColumnMap();
+      if (!columnMap.productName || !columnMap.qty) {
+        showToast("상품명과 출고예정수량 열을 확인해주세요.", true);
+        return;
+      }
+
+      btnStatement.disabled = true;
+      btnStatement.textContent = "처리 중...";
+      setLoadingState(true);
+
+      try {
+        const result = await ipcRenderer.invoke("process-statement-file", {
+          sellerPath: sellerExcelPath,
+          sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "",
+          shopName: selShop?.options[selShop.selectedIndex]?.text || "",
+          dateValue: dateInput?.value || "",
+          inboundPlaceName: getInboundPlaceValue(),
+          inboundAddress: inputInboundAddress?.value.trim() || "",
+          inboundManager: inputInboundManager?.value.trim() || "",
+          inboundPhone: inputInboundPhone?.value.trim() || "",
+          columnMap,
+        });
+
+        if (result.ok) {
+          showToast(result.warning || "거래명세서 작업 완료!");
+        } else {
+          showToast(result.error, true);
+        }
+      } catch (err) {
+        showToast("작업 도중 에러가 발생했습니다.", true);
+      } finally {
+        btnStatement.disabled = false;
+        btnStatement.textContent = "거래명세서";
+        setLoadingState(false);
+      }
+    });
+
+    // --- [2. 출고 검수지 작업 버튼 (기존 검수파일 기능 연결)] ---
     const btnOutboundVerify = document.getElementById("btn-outbound-verify");
     btnOutboundVerify?.addEventListener("click", async function () {
       if (!sellerExcelPath) {
