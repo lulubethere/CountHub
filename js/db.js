@@ -149,6 +149,31 @@ async function getCenters() {
 }
 
 /**
+ * InboundCenter 목록 조회
+ * @returns {Promise<Array<{ id: number|string, mainName: string }>>}
+ */
+async function getInboundCenters() {
+  const res = await query(
+    'SELECT id, "mainName" FROM public."InboundCenter" ORDER BY "mainName"',
+    [],
+  );
+  return res.rows || [];
+}
+
+/**
+ * InboundCenter 상세 조회
+ * @param {number|string} id
+ * @returns {Promise<{ id: number|string, mainName: string, address: string, name: string, phoneNumber: string } | null>}
+ */
+async function getInboundCenterDetail(id) {
+  const res = await query(
+    'SELECT id, "mainName", address, "name", "phoneNumber" FROM public."InboundCenter" WHERE id = $1 LIMIT 1',
+    [id],
+  );
+  return res.rows[0] || null;
+}
+
+/**
  * CodeMaster에서 parent_code=400(쇼핑몰) 목록 조회
  * @returns {Promise<Array<{ code: number|string, name: string }>>}
  */
@@ -503,6 +528,8 @@ module.exports = {
   getSellers,
   getProductTypes,
   getCenters,
+  getInboundCenters,
+  getInboundCenterDetail,
   getShops,
   getForm,
   getCodeMasterList,

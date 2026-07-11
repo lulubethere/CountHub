@@ -18,7 +18,6 @@
   let sellerExcelPath = null;
   let verifyExcelPath = null;
   let inboundExcelPath = null;
-
   document.addEventListener("DOMContentLoaded", async function () {
     // Drag & drop 기본 동작 방지 (파일 열림 방지)
     const preventWindowDrop = (e) => e.preventDefault();
@@ -44,99 +43,36 @@
       defaultTemplateStatus.classList.toggle('status-missing', !isApplied);
     }
 
-    // 입고검수파일양식 체크 (id = 1)
     try {
       const checkVerify = await ipcRenderer.invoke('check-default-template');
-      
-      if (checkVerify.ok) {
-        console.log("✅ 입고검수파일 양식 준비 완료:", checkVerify.filename);
-        hasVerifyDefault = true;
-        if (btnSelectVerify && badgeVerify) {
-          btnSelectVerify.classList.add('has-default');
-          btnSelectVerify.textContent = `입고검수파일양식 엑셀첨부 (.xlsx .xls)`;
-          // badgeVerify.textContent = '( 기본양식 적용  ✅ )';
-if (checkVerify.ok) {
-    badgeVerify.classList.add('visible'); // CSS의 visibility: visible 적용
-    badgeVerify.style.display = 'block';   // 혹시 모르니 display도 block 유지
-} else {
-    badgeVerify.classList.remove('visible');
-}          badgeVerify.classList.remove('no-template');
-        }
-      } else {
-        console.warn("⚠️ 입고검수파일 양식 없음:", checkVerify.error);
-        hasVerifyDefault = false;
-        if (badgeVerify) {
-          // badgeVerify.textContent = '기본양식 없음';
-          // badgeVerify.classList.add('no-template');
-if (checkVerify.ok) {
-    badgeVerify.classList.add('visible'); // CSS의 visibility: visible 적용
-    badgeVerify.style.display = 'block';   // 혹시 모르니 display도 block 유지
-} else {
-    badgeVerify.classList.remove('visible');
-}        }
-      }
+      hasVerifyDefault = !!checkVerify.ok;
       updateDefaultTemplateStatus();
-      } catch (err) {
-      console.error("입고검수파일 양식 체크 에러:", err);
+    } catch (err) {
       hasVerifyDefault = false;
       updateDefaultTemplateStatus();
-      if (badgeVerify) {
-        badgeVerify.textContent = '기본양식 없음';
-        badgeVerify.classList.add('no-template');
-        badgeVerify.style.display = 'inline-block';
-      }
     }
-    
-    // 입고파일양식 체크 (id = 2)
+
     try {
       const checkInbound = await ipcRenderer.invoke('check-inbound-template');
-      
-      if (checkInbound.ok) {
-        console.log("✅ 입고파일 양식 준비 완료:", checkInbound.filename);
-        hasInboundDefault = true;
-        if (btnSelectInbound && badgeInbound) {
-          btnSelectInbound.classList.add('has-default');
-          btnSelectInbound.textContent = `입고파일양식 엑셀첨부 (.xlsx .xls)`;
-          // badgeInbound.textContent = '( 기본양식 적용 ✅ )';
-if (checkInbound.ok) {
-    badgeInbound.classList.add('visible'); // CSS의 visibility: visible 적용
-    badgeInbound.style.display = 'block';   // 혹시 모르니 display도 block 유지
-} else {
-    badgeInbound.classList.remove('visible');
-}          badgeInbound.classList.remove('no-template');
-        }
-      } else {
-        console.warn("⚠️ 입고파일 양식 없음:", checkInbound.error);
-        hasInboundDefault = false;
-        if (badgeInbound) {
-          // badgeInbound.textContent = '기본양식 없음';
-          // badgeInbound.classList.add('no-template');
-if (checkVerify.ok) {
-    badgeVerify.classList.add('visible'); // CSS의 visibility: visible 적용
-    badgeVerify.style.display = 'block';   // 혹시 모르니 display도 block 유지
-} else {
-    badgeVerify.classList.remove('visible');
-}        }
-      }
+      hasInboundDefault = !!checkInbound.ok;
       updateDefaultTemplateStatus();
-      } catch (err) {
-      console.error("입고파일 양식 체크 에러:", err);
+    } catch (err) {
       hasInboundDefault = false;
       updateDefaultTemplateStatus();
-      if (badgeInbound) {
-        badgeInbound.textContent = '기본양식 없음';
-        badgeInbound.classList.add('no-template');
-        badgeInbound.style.display = 'inline-block';
-      }
     }
-    
+
     const selSeller = document.getElementById("sel-seller");
     const selType = document.getElementById("sel-type");
     const selCenter = document.getElementById("sel-center");
     const selShop = document.getElementById("sel-shop");
     const selTemplateSheet = document.getElementById("sel-template-sheet");
     const dateInput = document.getElementById("dateInput");
-    const selReleaseCenter = document.getElementById("sel-release-center");
+    const btnTodayDate = document.getElementById("btn-today-date");
+    const inputInboundPlace = document.getElementById("input-inbound-place");
+    const inboundPlaceOptions = document.getElementById("inbound-place-options");
+    const inputInboundAddress = document.getElementById("input-inbound-address");
+    const inputInboundManager = document.getElementById("input-inbound-manager");
+    const inputInboundPhone = document.getElementById("input-inbound-phone");
     const btnReset = document.getElementById("btn-reset");
     const btnSettings = document.getElementById("btn-settings");
     const settingsModal = document.getElementById("settings-modal");
@@ -185,6 +121,71 @@ if (checkVerify.ok) {
     let columnDirty = false;
     let sellerFormDirty = false;
     let pendingSellerFormLink = new Map();
+    let inboundPlaceMap = new Map();
+    let currentInboundPlaceId = "";
+
+    function setInboundPlaceDetail(detail) {
+      if (inputInboundAddress) inputInboundAddress.value = detail?.address || "";
+      if (inputInboundManager) inputInboundManager.value = detail?.name || "";
+      if (inputInboundPhone) inputInboundPhone.value = detail?.phoneNumber || "";
+    }
+
+    async function loadInboundPlaceOptions() {
+      if (!inboundPlaceOptions) return;
+      try {
+        const result = await ipcRenderer.invoke("get-inbound-centers");
+        if (result.ok && result.data) {
+          inboundPlaceMap = new Map();
+          inboundPlaceOptions.innerHTML = result.data
+            .map((row) => {
+              const name = row.mainName || "";
+              inboundPlaceMap.set(name, String(row.id));
+              return `<option value="${name}"></option>`;
+            })
+            .join("");
+        }
+      } catch (e) {
+        console.error("입고지 목록 로드 실패:", e);
+      }
+    }
+
+    async function bindInboundPlaceDetail(id) {
+      if (!id) {
+        currentInboundPlaceId = "";
+        setInboundPlaceDetail(null);
+        return;
+      }
+      try {
+        const result = await ipcRenderer.invoke("get-inbound-center-detail", id);
+        if (result.ok && result.data) {
+          currentInboundPlaceId = String(result.data.id ?? id);
+          setInboundPlaceDetail(result.data);
+        } else {
+          currentInboundPlaceId = "";
+          setInboundPlaceDetail(null);
+        }
+      } catch (e) {
+        console.error("입고지 상세 로드 실패:", e);
+        currentInboundPlaceId = "";
+        setInboundPlaceDetail(null);
+      }
+    }
+
+    async function syncInboundPlaceByName(rawValue) {
+      const name = (rawValue || "").trim();
+      if (!name) {
+        currentInboundPlaceId = "";
+        setInboundPlaceDetail(null);
+        return;
+      }
+      const matchedId = inboundPlaceMap.get(name);
+      if (!matchedId) {
+        currentInboundPlaceId = "";
+        setInboundPlaceDetail(null);
+        return;
+      }
+      await bindInboundPlaceDetail(matchedId);
+    }
 
     btnReset?.addEventListener("click", () => {
       window.location.reload();
@@ -254,19 +255,22 @@ if (checkVerify.ok) {
       const prevCenter = selCenter?.value || "";
       const prevShop = selShop?.value || "";
       const prevForm = selTemplateSheet?.value || "";
-      const prevReleaseCenter = selReleaseCenter?.value || "";
+      const prevInboundPlace = inputInboundPlace?.value || "";
       await Promise.all([
         loadCombo(selSeller, 'get-sellers'),
         loadCombo(selType, 'get-product-types'),
         loadCombo(selCenter, 'get-centers'),
-        loadCombo(selReleaseCenter, 'get-centers'),
+        loadInboundPlaceOptions(),
         loadCombo(selShop, 'get-shops'),
         loadCombo(selTemplateSheet, 'get-form'),
       ]);
       if (selSeller) selSeller.value = prevSeller;
       if (selType) selType.value = prevType;
       if (selCenter) selCenter.value = prevCenter;
-      if (selReleaseCenter) selReleaseCenter.value = prevReleaseCenter;
+      if (inputInboundPlace) {
+        inputInboundPlace.value = prevInboundPlace;
+        await syncInboundPlaceByName(prevInboundPlace);
+      }
       if (selShop) selShop.value = prevShop;
       if (selTemplateSheet) selTemplateSheet.value = prevForm;
       if (selSeller && selSeller.value) {
@@ -279,17 +283,30 @@ if (checkVerify.ok) {
     loadCombo(selSeller, 'get-sellers');
     loadCombo(selType, 'get-product-types');
     loadCombo(selCenter, 'get-centers');
-    loadCombo(selReleaseCenter, 'get-centers');
+    loadInboundPlaceOptions();
     loadCombo(selShop, 'get-shops');
     loadCombo(selTemplateSheet, 'get-form');
 
-    function getReleaseCenterValue() {
-      if (selReleaseCenter && selReleaseCenter.selectedIndex >= 0) {
-        return selReleaseCenter.options[selReleaseCenter.selectedIndex]?.text || "";
-      }
-
-      return "";
+    function getInboundPlaceValue() {
+      return inputInboundPlace?.value.trim() || "";
     }
+
+    inputInboundPlace?.addEventListener("change", async function () {
+      await syncInboundPlaceByName(this.value);
+    });
+
+    inputInboundPlace?.addEventListener("input", async function () {
+      const value = this.value.trim();
+      if (!value) {
+        currentInboundPlaceId = "";
+        setInboundPlaceDetail(null);
+        return;
+      }
+      if (!inboundPlaceMap.has(value)) {
+        currentInboundPlaceId = "";
+        setInboundPlaceDetail(null);
+      }
+    });
 
     const nameToFieldId = { 'SKU': 'sku', '상품명': 'product-name', '유통기한': 'expiry', '로트': 'lot', '수량': 'expected-qty' };
 
@@ -334,6 +351,14 @@ if (checkVerify.ok) {
     dateInput?.addEventListener("blur", function() {
       const raw = this.value.replace(/\D/g, "");
       if (raw.length === 8) this.value = `${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
+    });
+
+    btnTodayDate?.addEventListener("click", () => {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      if (dateInput) dateInput.value = `${yyyy}-${mm}-${dd}`;
     });
 
     function isExcelFile(fileName) {
@@ -486,21 +511,21 @@ if (checkVerify.ok) {
       });
       const run = async () => {
         const ok = await okPromise;
-      if (!ok) return;
-      if (templateType === "verify") {
-        pendingTemplateDeletes.verify = true;
-        pendingTemplateChanges.verifyPath = null;
-        setTemplateName(defaultVerifyName, "");
-        if (btnDefaultVerify) btnDefaultVerify.textContent = "입고검수파일 기본양식 등록";
-        if (btnDefaultVerifyDelete) btnDefaultVerifyDelete.style.display = "none";
-      }
-      if (templateType === "inbound") {
-        pendingTemplateDeletes.inbound = true;
-        pendingTemplateChanges.inboundPath = null;
-        setTemplateName(defaultInboundName, "");
-        if (btnDefaultInbound) btnDefaultInbound.textContent = "입고파일 기본양식 등록";
-        if (btnDefaultInboundDelete) btnDefaultInboundDelete.style.display = "none";
-      }
+        if (!ok) return;
+        if (templateType === "verify") {
+          pendingTemplateDeletes.verify = true;
+          pendingTemplateChanges.verifyPath = null;
+          setTemplateName(defaultVerifyName, "");
+          if (btnDefaultVerify) btnDefaultVerify.textContent = "입고검수파일 기본양식 등록";
+          if (btnDefaultVerifyDelete) btnDefaultVerifyDelete.style.display = "none";
+        }
+        if (templateType === "inbound") {
+          pendingTemplateDeletes.inbound = true;
+          pendingTemplateChanges.inboundPath = null;
+          setTemplateName(defaultInboundName, "");
+          if (btnDefaultInbound) btnDefaultInbound.textContent = "입고파일 기본양식 등록";
+          if (btnDefaultInboundDelete) btnDefaultInboundDelete.style.display = "none";
+        }
         setDbDirty(true);
       };
       run();
@@ -1054,9 +1079,9 @@ if (checkVerify.ok) {
       };
     }
 
-    // --- [1. 입고검수파일 작업 버튼 (기존 기능)] ---
-    const btnVerify = document.getElementById("btn-verify");
-    btnVerify?.addEventListener("click", async function () {
+    // --- [1. 출고 검수지 작업 버튼 (기존 검수파일 기능 연결)] ---
+    const btnOutboundVerify = document.getElementById("btn-outbound-verify");
+    btnOutboundVerify?.addEventListener("click", async function () {
       if (!sellerExcelPath) {
         showToast("입고예정엑셀파일(패킹리스트)을 먼저 선택해주세요.", true);
         return;
@@ -1067,17 +1092,16 @@ if (checkVerify.ok) {
         return;
       }
 
-      btnVerify.disabled = true;
-      btnVerify.textContent = "처리 중...";
+      btnOutboundVerify.disabled = true;
+      btnOutboundVerify.textContent = "처리 중...";
       setLoadingState(true);
 
       try {
         const result = await ipcRenderer.invoke("process-verify-file", {
-          verifyPath: verifyExcelPath,
           sellerPath: sellerExcelPath,
           sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "",
           shopName: selShop?.options[selShop.selectedIndex]?.text || "",
-          releaseCenter: getReleaseCenterValue(),
+          releaseCenter: getInboundPlaceValue(),
           dateValue: dateInput?.value || "",
           columnMap,
         });
@@ -1089,55 +1113,8 @@ if (checkVerify.ok) {
       } catch (err) {
         showToast("작업 도중 에러가 발생했습니다.", true);
       } finally {
-        btnVerify.disabled = false;
-        btnVerify.textContent = "입고검수파일 작업";
-        setLoadingState(false);
-      }
-    });
-
-    // --- [2. 입고파일 작업 버튼 (신규 기능 추가)] ---
-    const btnProcess = document.getElementById("btn-process");
-    btnProcess?.addEventListener("click", async function () {
-      // 필수 체크
-      if (!sellerExcelPath) {
-        showToast("입고예정엑셀파일(패킹리스트)을 먼저 선택해주세요.", true);
-        return;
-      }
-
-      const columnMap = getColumnMap();
-      if (!columnMap.productName || !columnMap.qty) {
-        showToast("상품명과 입고예정수량 열을 확인해주세요.", true);
-        return;
-      }
-
-      btnProcess.disabled = true;
-      btnProcess.textContent = "처리 중...";
-      setLoadingState(true);
-
-      try {
-        const result = await ipcRenderer.invoke("process-inbound-file", {
-          templatePath: inboundExcelPath, // 사용자가 선택한 양식 (없으면 메인에서 DB 양식 로드)
-          sellerPath: sellerExcelPath,
-          centerData: {
-            sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "선택",
-            inboundCenter: selCenter?.options[selCenter.selectedIndex]?.text || "선택",
-            productType: selType?.options[selType.selectedIndex]?.text || "선택",
-            shopName: selShop?.options[selShop.selectedIndex]?.text || "선택",
-            dateValue: dateInput?.value || ""
-          },
-          columnMap
-        });
-
-        if (result.ok) {
-          showToast("입고파일 작업 완료!");
-        } else {
-          showToast(result.error, true);
-        }
-      } catch (err) {
-        showToast("작업 도중 에러가 발생했습니다.", true);
-      } finally {
-        btnProcess.disabled = false;
-        btnProcess.textContent = "입고파일 작업";
+        btnOutboundVerify.disabled = false;
+        btnOutboundVerify.textContent = "출고 검수지 작업";
         setLoadingState(false);
       }
     });

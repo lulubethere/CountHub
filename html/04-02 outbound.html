@@ -89,7 +89,10 @@
                     </div>
                   </div>
                   <div class="field">
-                    <div class="field-label">출고예정일</div>
+                    <div class="field-label-row">
+                      <div class="field-label">출고예정일</div>
+                      <button id="btn-today-date" class="btn-today" type="button">Today</button>
+                    </div>
                     <div class="field-control">
                       <input id="dateInput" type="text" inputmode="numeric" placeholder="YYYYMMDD" maxlength="8" />
                       <div id="dateError" class="field-error">존재하지 않는 날짜입니다.</div>
@@ -138,32 +141,14 @@
               <p class="panel-desc">파일 변환 작업을 실행하세요.</p>
             </div>
             <div class="action-group action-group-fixed">
-              <button id="btn-process" class="btn-primary">거래명세서 작업</button>
-              <button id="btn-verify" class="btn-secondary">검수파일 변환</button>
+              <button id="btn-statement" class="btn-primary">거래명세서</button>
+              <button id="btn-outbound-verify" class="btn-secondary">검수파일</button>
             </div>
           </div>
         </section>
           </div>
 
           <aside class="page-side">
-            <section class="panel side-panel">
-              <div class="panel-header">
-                <div class="panel-title">
-                  <h3>입고센터</h3>
-                  <p class="panel-desc">입고센터를 선택하세요.</p>
-                </div>
-              </div>
-              <div class="panel-body">
-                <div class="field">
-                  <div class="field-control">
-                    <select id="sel-release-center" class="side-input">
-                      <option value="">선택</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </section>
-
             <section class="panel side-panel">
               <div class="panel-header">
                 <div class="panel-title">
@@ -185,24 +170,39 @@
             <section class="panel side-panel">
               <div class="panel-header">
                 <div class="panel-title">
-                  <h3>템플릿 업로드</h3>
-                  <p class="panel-desc">명세서/검수 템플릿을 선택하세요.</p>
-                </div>
-                <div class="panel-meta">
-                <span id="default-template-status" class="meta-pill status-missing">기본양식 미적용</span>
+                  <h3>입고지 정보</h3>
+                  <p class="panel-desc">입고지명을 선택하거나 직접 입력하세요.</p>
                 </div>
               </div>
-              <div class="panel-body stack">
-                <div class="upload-row">
-                  <button id="btn-select-inbound-file" class="btn-outline">입고파일양식 엑셀첨부 (.xlsx .xls)</button>
-                  <!-- <span id="inbound-template-badge" class="template-badge">( 기본양식 적용 ❌ )</span> -->
+              <div class="panel-body">
+                <div class="field">
+                  <div class="field-label">입고지명</div>
+                  <div class="field-control">
+                    <input id="input-inbound-place" class="side-input" type="text" list="inbound-place-options" placeholder="입고지명 선택 또는 직접 입력">
+                    <datalist id="inbound-place-options"></datalist>
+                  </div>
                 </div>
-                <div class="upload-row">
-                  <button id="btn-select-verify-file" class="btn-outline">검수파일양식 엑셀첨부 (.xlsx .xls)</button>
-                  <!-- <span id="verify-template-badge" class="template-badge">( 기본양식 적용 ❌ )</span> -->
+                <div class="field">
+                  <div class="field-label">주소</div>
+                  <div class="field-control">
+                    <input id="input-inbound-address" class="side-input" type="text">
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="field-label">담당자명</div>
+                  <div class="field-control">
+                    <input id="input-inbound-manager" class="side-input" type="text">
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="field-label">전화번호</div>
+                  <div class="field-control">
+                    <input id="input-inbound-phone" class="side-input" type="text">
+                  </div>
                 </div>
               </div>
             </section>
+
           </aside>
         </section>
 

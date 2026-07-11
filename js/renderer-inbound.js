@@ -136,6 +136,7 @@ if (checkVerify.ok) {
     const selShop = document.getElementById("sel-shop");
     const selTemplateSheet = document.getElementById("sel-template-sheet");
     const dateInput = document.getElementById("dateInput");
+    const btnTodayDate = document.getElementById("btn-today-date");
     const inputReleaseCenter = document.getElementById("input-release-center");
     const btnReset = document.getElementById("btn-reset");
     const btnSettings = document.getElementById("btn-settings");
@@ -322,6 +323,14 @@ if (checkVerify.ok) {
     dateInput?.addEventListener("blur", function() {
       const raw = this.value.replace(/\D/g, "");
       if (raw.length === 8) this.value = `${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
+    });
+
+    btnTodayDate?.addEventListener("click", () => {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, "0");
+      const dd = String(today.getDate()).padStart(2, "0");
+      if (dateInput) dateInput.value = `${yyyy}-${mm}-${dd}`;
     });
 
     function isExcelFile(fileName) {

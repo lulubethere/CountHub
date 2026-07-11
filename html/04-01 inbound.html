@@ -89,7 +89,10 @@
                     </div>
                   </div>
                   <div class="field">
-                    <div class="field-label">입고예정일</div>
+                    <div class="field-label-row">
+                      <div class="field-label">입고예정일</div>
+                      <button id="btn-today-date" class="btn-today" type="button">Today</button>
+                    </div>
                     <div class="field-control">
                       <input id="dateInput" type="text" inputmode="numeric" placeholder="YYYYMMDD" maxlength="8" />
                       <div id="dateError" class="field-error">존재하지 않는 날짜입니다.</div>
@@ -138,8 +141,8 @@
               <p class="panel-desc">파일 변환 작업을 실행하세요.</p>
             </div>
             <div class="action-group action-group-fixed">
-              <button id="btn-process" class="btn-primary">입고파일 변환</button>
-              <button id="btn-verify" class="btn-secondary">검수파일 변환</button>
+              <button id="btn-process" class="btn-primary">입고파일</button>
+              <button id="btn-verify" class="btn-secondary">검수파일</button>
             </div>
           </div>
         </section>

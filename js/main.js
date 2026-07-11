@@ -55,6 +55,21 @@ ipcMain.handle("get-centers", async () => {
     return { ok: false };
   }
 });
+ipcMain.handle("get-inbound-centers", async () => {
+  try {
+    return { ok: true, data: await db.getInboundCenters() };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+ipcMain.handle("get-inbound-center-detail", async (_, id) => {
+  try {
+    const data = await db.getInboundCenterDetail(id);
+    return data ? { ok: true, data } : { ok: false, error: "입고지 정보를 찾을 수 없습니다." };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
 ipcMain.handle("get-shops", async () => {
   try {
     return { ok: true, data: await db.getShops() };
