@@ -65,14 +65,6 @@
                     </div>
                   </div>
                   <div class="field">
-                    <div class="field-label">출고센터</div>
-                    <div class="field-control">
-                      <select id="sel-center">
-                        <option value="">선택</option>
-                      </select>
-                    </div>
-                  </div>
-                  <div class="field">
                     <div class="field-label">상품구분</div>
                     <div class="field-control">
                       <select id="sel-type">
@@ -96,6 +88,14 @@
                     <div class="field-control">
                       <input id="dateInput" type="text" inputmode="numeric" placeholder="YYYYMMDD" maxlength="8" />
                       <div id="dateError" class="field-error">존재하지 않는 날짜입니다.</div>
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">양식지 선택</div>
+                    <div class="field-control">
+                      <select id="sel-template-sheet">
+                        <option value="">선택</option>
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -152,16 +152,36 @@
             <section class="panel side-panel">
               <div class="panel-header">
                 <div class="panel-title">
-                  <h3>양식지 선택</h3>
-                  <p class="panel-desc">사용할 양식지를 선택하세요.</p>
+                  <h3>출고지 정보</h3>
                 </div>
+                <button id="btn-outbound-default" class="btn-ghost btn-mini side-default-btn" type="button">기본값</button>
               </div>
               <div class="panel-body">
                 <div class="field">
+                  <div class="field-label">출고지명</div>
                   <div class="field-control">
-                    <select id="sel-template-sheet">
-                      <option value="">선택</option>
-                    </select>
+                    <input id="input-outbound-place" class="side-input" type="text" list="outbound-place-options" placeholder="출고지명 선택 또는 직접 입력">
+                    <datalist id="outbound-place-options"></datalist>
+                  </div>
+                </div>
+                <div class="field">
+                  <div class="field-label">주소</div>
+                  <div class="field-control">
+                    <input id="input-outbound-address" class="side-input" type="text">
+                  </div>
+                </div>
+                <div class="side-field-row">
+                  <div class="field">
+                    <div class="field-label">담당자명</div>
+                    <div class="field-control">
+                      <input id="input-outbound-manager" class="side-input" type="text">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">전화번호</div>
+                    <div class="field-control">
+                      <input id="input-outbound-phone" class="side-input" type="text">
+                    </div>
                   </div>
                 </div>
               </div>
@@ -171,7 +191,6 @@
               <div class="panel-header">
                 <div class="panel-title">
                   <h3>입고지 정보</h3>
-                  <p class="panel-desc">입고지명을 선택하거나 직접 입력하세요.</p>
                 </div>
               </div>
               <div class="panel-body">
@@ -188,16 +207,18 @@
                     <input id="input-inbound-address" class="side-input" type="text">
                   </div>
                 </div>
-                <div class="field">
-                  <div class="field-label">담당자명</div>
-                  <div class="field-control">
-                    <input id="input-inbound-manager" class="side-input" type="text">
+                <div class="side-field-row">
+                  <div class="field">
+                    <div class="field-label">담당자명</div>
+                    <div class="field-control">
+                      <input id="input-inbound-manager" class="side-input" type="text">
+                    </div>
                   </div>
-                </div>
-                <div class="field">
-                  <div class="field-label">전화번호</div>
-                  <div class="field-control">
-                    <input id="input-inbound-phone" class="side-input" type="text">
+                  <div class="field">
+                    <div class="field-label">전화번호</div>
+                    <div class="field-control">
+                      <input id="input-inbound-phone" class="side-input" type="text">
+                    </div>
                   </div>
                 </div>
               </div>
@@ -242,7 +263,6 @@
             <div class="db-manager">
               <div class="db-tabs">
                 <button class="db-tab is-active" data-tab="seller">셀러</button>
-                <button class="db-tab" data-tab="center">입고센터</button>
                 <button class="db-tab" data-tab="type">상품구분</button>
                 <button class="db-tab" data-tab="shop">쇼핑몰</button>
                 <button class="db-tab" data-tab="form">양식지</button>
@@ -387,6 +407,26 @@
       <div class="modal-footer">
         <button id="settings-cancel" class="btn-outline">취소</button>
         <button id="settings-save" class="btn-primary">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="outbound-default-modal" class="mini-modal" aria-hidden="true">
+    <div class="mini-modal-card" tabindex="-1">
+      <div class="mini-modal-title">기본 출고지 선택</div>
+      <div class="mini-modal-body">
+        <div class="field">
+          <div class="field-label">출고지명</div>
+          <div class="field-control">
+            <select id="sel-outbound-default-place">
+              <option value="">선택 안 함</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="mini-modal-actions">
+        <button id="outbound-default-cancel" class="btn-outline">취소</button>
+        <button id="outbound-default-confirm" class="btn-primary">적용</button>
       </div>
     </div>
   </div>

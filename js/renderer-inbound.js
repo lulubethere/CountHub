@@ -132,7 +132,6 @@ if (checkVerify.ok) {
     
     const selSeller = document.getElementById("sel-seller");
     const selType = document.getElementById("sel-type");
-    const selCenter = document.getElementById("sel-center");
     const selShop = document.getElementById("sel-shop");
     const selTemplateSheet = document.getElementById("sel-template-sheet");
     const dateInput = document.getElementById("dateInput");
@@ -252,19 +251,16 @@ if (checkVerify.ok) {
     async function refreshInboundSelectors() {
       const prevSeller = selSeller?.value || "";
       const prevType = selType?.value || "";
-      const prevCenter = selCenter?.value || "";
       const prevShop = selShop?.value || "";
       const prevForm = selTemplateSheet?.value || "";
       await Promise.all([
         loadCombo(selSeller, 'get-sellers'),
         loadCombo(selType, 'get-product-types'),
-        loadCombo(selCenter, 'get-centers'),
         loadCombo(selShop, 'get-shops'),
         loadCombo(selTemplateSheet, 'get-form'),
       ]);
       if (selSeller) selSeller.value = prevSeller;
       if (selType) selType.value = prevType;
-      if (selCenter) selCenter.value = prevCenter;
       if (selShop) selShop.value = prevShop;
       if (selTemplateSheet) selTemplateSheet.value = prevForm;
       if (selSeller && selSeller.value) {
@@ -276,7 +272,6 @@ if (checkVerify.ok) {
 
     loadCombo(selSeller, 'get-sellers');
     loadCombo(selType, 'get-product-types');
-    loadCombo(selCenter, 'get-centers');
     loadCombo(selShop, 'get-shops');
     loadCombo(selTemplateSheet, 'get-form');
 
@@ -286,7 +281,6 @@ if (checkVerify.ok) {
     selSeller?.addEventListener('change', async function () {
       const sellerCode = this.value.trim();
       if (sellerCode) {
-        if (selCenter) selCenter.selectedIndex = 1;
         if (selType) selType.selectedIndex = 1;
         if (selShop) selShop.selectedIndex = 1;        
       }
@@ -609,7 +603,6 @@ if (checkVerify.ok) {
     const dbTabToParentCode = {
       seller: 100,
       type: 200,
-      center: 300,
       shop: 400,
       form: 600,
     };
@@ -1117,7 +1110,7 @@ if (checkVerify.ok) {
           sellerPath: sellerExcelPath,
           centerData: {
             sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "선택",
-            inboundCenter: selCenter?.options[selCenter.selectedIndex]?.text || "선택",
+            inboundCenter: "",
             productType: selType?.options[selType.selectedIndex]?.text || "선택",
             shopName: selShop?.options[selShop.selectedIndex]?.text || "선택",
             dateValue: dateInput?.value || ""

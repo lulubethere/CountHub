@@ -14,6 +14,8 @@
     return;
   }
 
+  const STORAGE_OUTBOUND_DEFAULT_PLACE = "countHubOutboundDefaultPlace";
+
   // 파일 경로 저장 변수
   let sellerExcelPath = null;
   let verifyExcelPath = null;
@@ -63,7 +65,6 @@
 
     const selSeller = document.getElementById("sel-seller");
     const selType = document.getElementById("sel-type");
-    const selCenter = document.getElementById("sel-center");
     const selShop = document.getElementById("sel-shop");
     const selTemplateSheet = document.getElementById("sel-template-sheet");
     const dateInput = document.getElementById("dateInput");
@@ -73,6 +74,12 @@
     const inputInboundAddress = document.getElementById("input-inbound-address");
     const inputInboundManager = document.getElementById("input-inbound-manager");
     const inputInboundPhone = document.getElementById("input-inbound-phone");
+    const inputOutboundPlace = document.getElementById("input-outbound-place");
+    const outboundPlaceOptions = document.getElementById("outbound-place-options");
+    const inputOutboundAddress = document.getElementById("input-outbound-address");
+    const inputOutboundManager = document.getElementById("input-outbound-manager");
+    const inputOutboundPhone = document.getElementById("input-outbound-phone");
+    const btnOutboundDefault = document.getElementById("btn-outbound-default");
     const btnReset = document.getElementById("btn-reset");
     const btnSettings = document.getElementById("btn-settings");
     const settingsModal = document.getElementById("settings-modal");
@@ -89,8 +96,13 @@
     const dbBtnAdd = document.getElementById("db-btn-add");
     const settingsSave = document.getElementById("settings-save");
     const settingsCancel = document.getElementById("settings-cancel");
+    const outboundDefaultModal = document.getElementById("outbound-default-modal");
+    const outboundDefaultModalCard = outboundDefaultModal?.querySelector(".mini-modal-card");
+    const selOutboundDefaultPlace = document.getElementById("sel-outbound-default-place");
+    const outboundDefaultConfirm = document.getElementById("outbound-default-confirm");
+    const outboundDefaultCancel = document.getElementById("outbound-default-cancel");
     const dbAddModal = document.getElementById("db-add-modal");
-    const dbAddModalCard = document.querySelector(".mini-modal-card");
+    const dbAddModalCard = dbAddModal?.querySelector(".mini-modal-card");
     const dbAddInput = document.getElementById("db-add-input");
     const dbAddConfirm = document.getElementById("db-add-confirm");
     const dbAddCancel = document.getElementById("db-add-cancel");
@@ -121,70 +133,152 @@
     let columnDirty = false;
     let sellerFormDirty = false;
     let pendingSellerFormLink = new Map();
-    let inboundPlaceMap = new Map();
-    let currentInboundPlaceId = "";
+    const placeFields = {
+      inbound: {
+        inputPlace: inputInboundPlace,
+        options: inboundPlaceOptions,
+        inputAddress: inputInboundAddress,
+        inputManager: inputInboundManager,
+        inputPhone: inputInboundPhone,
+        placeMap: new Map(),
+        currentPlaceId: "",
+      },
+      outbound: {
+        inputPlace: inputOutboundPlace,
+        options: outboundPlaceOptions,
+        inputAddress: inputOutboundAddress,
+        inputManager: inputOutboundManager,
+        inputPhone: inputOutboundPhone,
+        placeMap: new Map(),
+        currentPlaceId: "",
+      },
+    };
 
-    function setInboundPlaceDetail(detail) {
-      if (inputInboundAddress) inputInboundAddress.value = detail?.address || "";
-      if (inputInboundManager) inputInboundManager.value = detail?.name || "";
-      if (inputInboundPhone) inputInboundPhone.value = detail?.phoneNumber || "";
+    function setPlaceDetail(fieldGroup, detail) {
+      if (fieldGroup.inputAddress) fieldGroup.inputAddress.value = detail?.address || "";
+      if (fieldGroup.inputManager) fieldGroup.inputManager.value = detail?.name || "";
+      if (fieldGroup.inputPhone) fieldGroup.inputPhone.value = detail?.phoneNumber || "";
     }
 
-    async function loadInboundPlaceOptions() {
-      if (!inboundPlaceOptions) return;
+    function getSavedOutboundDefaultPlace() {
+      return (localStorage.getItem(STORAGE_OUTBOUND_DEFAULT_PLACE) || "").trim();
+    }
+
+    function setSavedOutboundDefaultPlace(name) {
+      const value = (name || "").trim();
+      if (value) {
+        localStorage.setItem(STORAGE_OUTBOUND_DEFAULT_PLACE, value);
+      } else {
+        localStorage.removeItem(STORAGE_OUTBOUND_DEFAULT_PLACE);
+      }
+      updateOutboundDefaultButton();
+    }
+
+    function updateOutboundDefaultButton() {
+      if (!btnOutboundDefault) return;
+      const savedName = getSavedOutboundDefaultPlace();
+      btnOutboundDefault.classList.toggle("is-active", !!savedName);
+      btnOutboundDefault.title = savedName
+        ? `기본 출고지: ${savedName}`
+        : "기본 출고지를 선택합니다.";
+    }
+
+    async function loadPlaceOptions(fieldGroup) {
+      if (!fieldGroup.options) return;
       try {
         const result = await ipcRenderer.invoke("get-inbound-centers");
         if (result.ok && result.data) {
-          inboundPlaceMap = new Map();
-          inboundPlaceOptions.innerHTML = result.data
+          fieldGroup.placeMap = new Map();
+          fieldGroup.options.innerHTML = result.data
             .map((row) => {
               const name = row.mainName || "";
-              inboundPlaceMap.set(name, String(row.id));
+              fieldGroup.placeMap.set(name, String(row.id));
               return `<option value="${name}"></option>`;
             })
             .join("");
         }
       } catch (e) {
-        console.error("입고지 목록 로드 실패:", e);
+        console.error("입출고지 목록 로드 실패:", e);
       }
     }
 
-    async function bindInboundPlaceDetail(id) {
+    async function applySavedOutboundDefault({ onlyWhenEmpty = false } = {}) {
+      const savedName = getSavedOutboundDefaultPlace();
+      if (!savedName || !inputOutboundPlace) {
+        updateOutboundDefaultButton();
+        return;
+      }
+      if (onlyWhenEmpty && inputOutboundPlace.value.trim()) {
+        updateOutboundDefaultButton();
+        return;
+      }
+      inputOutboundPlace.value = savedName;
+      await syncPlaceByName(placeFields.outbound, savedName);
+      updateOutboundDefaultButton();
+    }
+
+    async function populateOutboundDefaultSelect() {
+      await loadPlaceOptions(placeFields.outbound);
+      if (!selOutboundDefaultPlace) return;
+      const savedName = getSavedOutboundDefaultPlace();
+      const optionNames = Array.from(placeFields.outbound.placeMap.keys());
+      selOutboundDefaultPlace.innerHTML =
+        '<option value="">선택 안 함</option>' +
+        optionNames.map((name) => `<option value="${name}">${name}</option>`).join("");
+      selOutboundDefaultPlace.value = savedName;
+    }
+
+    async function openOutboundDefaultModal() {
+      if (!outboundDefaultModal) return;
+      await populateOutboundDefaultSelect();
+      outboundDefaultModal.classList.add("is-open");
+      outboundDefaultModal.setAttribute("aria-hidden", "false");
+      outboundDefaultModalCard?.focus();
+      selOutboundDefaultPlace?.focus({ preventScroll: true });
+    }
+
+    function closeOutboundDefaultModal() {
+      if (!outboundDefaultModal) return;
+      outboundDefaultModal.classList.remove("is-open");
+      outboundDefaultModal.setAttribute("aria-hidden", "true");
+    }
+
+    async function bindPlaceDetail(fieldGroup, id) {
       if (!id) {
-        currentInboundPlaceId = "";
-        setInboundPlaceDetail(null);
+        fieldGroup.currentPlaceId = "";
+        setPlaceDetail(fieldGroup, null);
         return;
       }
       try {
         const result = await ipcRenderer.invoke("get-inbound-center-detail", id);
         if (result.ok && result.data) {
-          currentInboundPlaceId = String(result.data.id ?? id);
-          setInboundPlaceDetail(result.data);
+          fieldGroup.currentPlaceId = String(result.data.id ?? id);
+          setPlaceDetail(fieldGroup, result.data);
         } else {
-          currentInboundPlaceId = "";
-          setInboundPlaceDetail(null);
+          fieldGroup.currentPlaceId = "";
+          setPlaceDetail(fieldGroup, null);
         }
       } catch (e) {
-        console.error("입고지 상세 로드 실패:", e);
-        currentInboundPlaceId = "";
-        setInboundPlaceDetail(null);
+        console.error("입출고지 상세 로드 실패:", e);
+        fieldGroup.currentPlaceId = "";
+        setPlaceDetail(fieldGroup, null);
       }
     }
 
-    async function syncInboundPlaceByName(rawValue) {
+    async function syncPlaceByName(fieldGroup, rawValue) {
       const name = (rawValue || "").trim();
       if (!name) {
-        currentInboundPlaceId = "";
-        setInboundPlaceDetail(null);
+        fieldGroup.currentPlaceId = "";
+        setPlaceDetail(fieldGroup, null);
         return;
       }
-      const matchedId = inboundPlaceMap.get(name);
+      const matchedId = fieldGroup.placeMap.get(name);
       if (!matchedId) {
-        currentInboundPlaceId = "";
-        setInboundPlaceDetail(null);
+        fieldGroup.currentPlaceId = "";
+        setPlaceDetail(fieldGroup, null);
         return;
       }
-      await bindInboundPlaceDetail(matchedId);
+      await bindPlaceDetail(fieldGroup, matchedId);
     }
 
     btnReset?.addEventListener("click", () => {
@@ -252,24 +346,30 @@
     async function refreshInboundSelectors() {
       const prevSeller = selSeller?.value || "";
       const prevType = selType?.value || "";
-      const prevCenter = selCenter?.value || "";
       const prevShop = selShop?.value || "";
       const prevForm = selTemplateSheet?.value || "";
       const prevInboundPlace = inputInboundPlace?.value || "";
+      const prevOutboundPlace = inputOutboundPlace?.value || "";
       await Promise.all([
         loadCombo(selSeller, 'get-sellers'),
         loadCombo(selType, 'get-product-types'),
-        loadCombo(selCenter, 'get-centers'),
-        loadInboundPlaceOptions(),
+        loadPlaceOptions(placeFields.inbound),
+        loadPlaceOptions(placeFields.outbound),
         loadCombo(selShop, 'get-shops'),
         loadCombo(selTemplateSheet, 'get-form'),
       ]);
       if (selSeller) selSeller.value = prevSeller;
       if (selType) selType.value = prevType;
-      if (selCenter) selCenter.value = prevCenter;
       if (inputInboundPlace) {
         inputInboundPlace.value = prevInboundPlace;
-        await syncInboundPlaceByName(prevInboundPlace);
+        await syncPlaceByName(placeFields.inbound, prevInboundPlace);
+      }
+      if (inputOutboundPlace) {
+        inputOutboundPlace.value = prevOutboundPlace;
+        await syncPlaceByName(placeFields.outbound, prevOutboundPlace);
+        if (!prevOutboundPlace) {
+          await applySavedOutboundDefault({ onlyWhenEmpty: true });
+        }
       }
       if (selShop) selShop.value = prevShop;
       if (selTemplateSheet) selTemplateSheet.value = prevForm;
@@ -282,30 +382,57 @@
 
     loadCombo(selSeller, 'get-sellers');
     loadCombo(selType, 'get-product-types');
-    loadCombo(selCenter, 'get-centers');
-    loadInboundPlaceOptions();
+    loadPlaceOptions(placeFields.inbound);
     loadCombo(selShop, 'get-shops');
     loadCombo(selTemplateSheet, 'get-form');
+    Promise.all([
+      loadPlaceOptions(placeFields.outbound),
+    ]).then(() => applySavedOutboundDefault({ onlyWhenEmpty: true }));
+    updateOutboundDefaultButton();
 
     function getInboundPlaceValue() {
       return inputInboundPlace?.value.trim() || "";
     }
 
-    inputInboundPlace?.addEventListener("change", async function () {
-      await syncInboundPlaceByName(this.value);
-    });
+    function getOutboundPlaceValue() {
+      return inputOutboundPlace?.value.trim() || "";
+    }
 
-    inputInboundPlace?.addEventListener("input", async function () {
-      const value = this.value.trim();
-      if (!value) {
-        currentInboundPlaceId = "";
-        setInboundPlaceDetail(null);
-        return;
+    function bindPlaceInputEvents(fieldGroup) {
+      fieldGroup.inputPlace?.addEventListener("change", async function () {
+        await syncPlaceByName(fieldGroup, this.value);
+      });
+
+      fieldGroup.inputPlace?.addEventListener("input", function () {
+        const value = this.value.trim();
+        if (!value) {
+          fieldGroup.currentPlaceId = "";
+          setPlaceDetail(fieldGroup, null);
+          return;
+        }
+        if (!fieldGroup.placeMap.has(value)) {
+          fieldGroup.currentPlaceId = "";
+          setPlaceDetail(fieldGroup, null);
+        }
+      });
+    }
+
+    bindPlaceInputEvents(placeFields.inbound);
+    bindPlaceInputEvents(placeFields.outbound);
+
+    btnOutboundDefault?.addEventListener("click", openOutboundDefaultModal);
+    outboundDefaultCancel?.addEventListener("click", closeOutboundDefaultModal);
+    outboundDefaultModal?.addEventListener("click", (e) => {
+      if (e.target === outboundDefaultModal) closeOutboundDefaultModal();
+    });
+    outboundDefaultConfirm?.addEventListener("click", async () => {
+      const selectedName = selOutboundDefaultPlace?.value || "";
+      setSavedOutboundDefaultPlace(selectedName);
+      if (selectedName) {
+        if (inputOutboundPlace) inputOutboundPlace.value = selectedName;
+        await syncPlaceByName(placeFields.outbound, selectedName);
       }
-      if (!inboundPlaceMap.has(value)) {
-        currentInboundPlaceId = "";
-        setInboundPlaceDetail(null);
-      }
+      closeOutboundDefaultModal();
     });
 
     const nameToFieldId = { 'SKU': 'sku', '상품명': 'product-name', '유통기한': 'expiry', '로트': 'lot', '수량': 'expected-qty' };
@@ -314,7 +441,6 @@
     selSeller?.addEventListener('change', async function () {
       const sellerCode = this.value.trim();
       if (sellerCode) {
-        if (selCenter) selCenter.selectedIndex = 1;
         if (selType) selType.selectedIndex = 1;
         if (selShop) selShop.selectedIndex = 1;        
       }
@@ -637,7 +763,6 @@
     const dbTabToParentCode = {
       seller: 100,
       type: 200,
-      center: 300,
       shop: 400,
       form: 600,
     };
@@ -1107,6 +1232,10 @@
           inboundAddress: inputInboundAddress?.value.trim() || "",
           inboundManager: inputInboundManager?.value.trim() || "",
           inboundPhone: inputInboundPhone?.value.trim() || "",
+          outboundPlaceName: getOutboundPlaceValue(),
+          outboundAddress: inputOutboundAddress?.value.trim() || "",
+          outboundManager: inputOutboundManager?.value.trim() || "",
+          outboundPhone: inputOutboundPhone?.value.trim() || "",
           columnMap,
         });
 

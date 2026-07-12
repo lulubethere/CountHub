@@ -122,6 +122,10 @@
   height: 100%;
 }
 
+.page-side {
+  gap: 14px;
+}
+
 .page-main > .highlight-panel,
 .page-main > .action-panel {
   flex: 1;
@@ -146,7 +150,8 @@
 }
 
 .side-panel {
-  padding: 16px 18px 18px;
+  padding: 12px 14px 14px;
+  gap: 10px;
 }
 
 .panel-header {
@@ -1263,6 +1268,53 @@
   gap: 10px;
 }
 
+.side-field-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.page-side .panel-header {
+  gap: 8px;
+  align-items: center;
+}
+
+.page-side .panel-title h3 {
+  font-size: 14px;
+}
+
+.side-default-btn {
+  margin-left: auto;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.side-default-btn.is-active {
+  background: #e0f2fe;
+  border-color: #bae6fd;
+  color: #0f172a;
+}
+
+.page-side .panel-body {
+  gap: 8px;
+}
+
+.page-side .field-label,
+.page-side .field-label-must {
+  font-size: 11px;
+  margin-bottom: 4px;
+}
+
+.page-side .side-input,
+.page-side .field-control input {
+  min-height: 34px;
+  padding: 7px 9px;
+  font-size: 12px;
+}
+
 .upload-row {
   display: flex;
   flex-direction: column;
@@ -1408,6 +1460,10 @@
   }
 
   .grid-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .side-field-row {
     grid-template-columns: minmax(0, 1fr);
   }
 
