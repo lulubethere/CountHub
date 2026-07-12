@@ -74,6 +74,7 @@
     const inputInboundAddress = document.getElementById("input-inbound-address");
     const inputInboundManager = document.getElementById("input-inbound-manager");
     const inputInboundPhone = document.getElementById("input-inbound-phone");
+    const inputPltQty = document.getElementById("input-plt-qty");
     const inputOutboundPlace = document.getElementById("input-outbound-place");
     const outboundPlaceOptions = document.getElementById("outbound-place-options");
     const inputOutboundAddress = document.getElementById("input-outbound-address");
@@ -1228,6 +1229,7 @@
           sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "",
           shopName: selShop?.options[selShop.selectedIndex]?.text || "",
           dateValue: dateInput?.value || "",
+          pltQty: inputPltQty?.value.trim() || "",
           inboundPlaceName: getInboundPlaceValue(),
           inboundAddress: inputInboundAddress?.value.trim() || "",
           inboundManager: inputInboundManager?.value.trim() || "",

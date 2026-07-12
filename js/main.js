@@ -1145,6 +1145,11 @@ ipcMain.handle("process-statement-file", async (_, payload) => {
       sellerName,
       shopName,
       dateValue,
+      pltQty,
+      outboundPlaceName,
+      outboundAddress,
+      outboundManager,
+      outboundPhone,
       inboundPlaceName,
       inboundAddress,
       inboundManager,
@@ -1238,16 +1243,34 @@ ipcMain.handle("process-statement-file", async (_, payload) => {
       sellerName: sellerName || "",
       shopName: shopName || "",
       dateValue: dateValue || "",
+      pltQty: pltQty || "",
+      outboundPlaceName: outboundPlaceName || "",
+      outboundAddress: outboundAddress || "",
+      outboundManager: outboundManager || "",
+      outboundPhone: outboundPhone || "",
       inboundPlaceName: inboundPlaceName || "",
       inboundAddress: inboundAddress || "",
       inboundManager: inboundManager || "",
       inboundPhone: inboundPhone || "",
     };
 
+    const formatPltLabel = (value) => {
+      const normalized = String(value ?? "").trim();
+      if (!normalized) return "";
+      return normalized.toUpperCase().endsWith("PLT")
+        ? normalized
+        : `${normalized}PLT`;
+    };
+
     const fillStatementSheet = (sheet, rows, maxRows) => {
       sheet.cell("G2").value(statementMeta.sellerName);
       sheet.cell("H2").value(statementMeta.shopName);
+      sheet.cell("I2").value(formatPltLabel(statementMeta.pltQty));
       sheet.cell("B2").value(statementMeta.dateValue);
+      sheet.cell("C4").value(statementMeta.outboundPlaceName);
+      sheet.cell("C5").value(statementMeta.outboundAddress);
+      sheet.cell("C6").value(statementMeta.outboundManager);
+      sheet.cell("C7").value(statementMeta.outboundPhone);
       sheet.cell("G4").value(statementMeta.inboundPlaceName);
       sheet.cell("G5").value(statementMeta.inboundAddress);
       sheet.cell("G6").value(statementMeta.inboundManager);

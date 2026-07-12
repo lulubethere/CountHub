@@ -23,6 +23,9 @@
           </div>
           <div class="hero-right">
             <div class="hero-stat hero-stat-reset">
+              <button id="btn-outbound-default" class="btn-secondary" type="button">출고지 기본값</button>
+            </div>
+            <div class="hero-stat hero-stat-reset">
               <button id="btn-reset" class="btn-secondary">초기화</button>
             </div>
             <div class="hero-stat hero-stat-reset">
@@ -43,7 +46,7 @@
               </div>
             </section>
 
-            <section class="panel">
+            <section class="panel basic-info-panel">
               <div class="panel-header">
                 <div class="panel-title">
                   <h3>기본 정보</h3>
@@ -151,19 +154,17 @@
           <aside class="page-side">
             <section class="panel side-panel">
               <div class="panel-header">
-                <div class="panel-title">
-                  <h3>출고지 정보</h3>
-                </div>
-                <button id="btn-outbound-default" class="btn-ghost btn-mini side-default-btn" type="button">기본값</button>
-              </div>
-              <div class="panel-body">
-                <div class="field">
-                  <div class="field-label">출고지명</div>
-                  <div class="field-control">
-                    <input id="input-outbound-place" class="side-input" type="text" list="outbound-place-options" placeholder="출고지명 선택 또는 직접 입력">
+                <div class="side-panel-header-main">
+                  <div class="panel-title">
+                    <h3>출고지 정보</h3>
+                  </div>
+                  <div class="side-header-input-wrap">
+                    <input id="input-outbound-place" class="side-input side-header-input" type="text" list="outbound-place-options" placeholder="출고지명 선택 또는 직접 입력">
                     <datalist id="outbound-place-options"></datalist>
                   </div>
                 </div>
+              </div>
+              <div class="panel-body">
                 <div class="field">
                   <div class="field-label">주소</div>
                   <div class="field-control">
@@ -189,18 +190,17 @@
 
             <section class="panel side-panel">
               <div class="panel-header">
-                <div class="panel-title">
-                  <h3>입고지 정보</h3>
-                </div>
-              </div>
-              <div class="panel-body">
-                <div class="field">
-                  <div class="field-label">입고지명</div>
-                  <div class="field-control">
-                    <input id="input-inbound-place" class="side-input" type="text" list="inbound-place-options" placeholder="입고지명 선택 또는 직접 입력">
+                <div class="side-panel-header-main">
+                  <div class="panel-title">
+                    <h3>입고지 정보</h3>
+                  </div>
+                  <div class="side-header-input-wrap">
+                    <input id="input-inbound-place" class="side-input side-header-input" type="text" list="inbound-place-options" placeholder="입고지명 선택 또는 직접 입력">
                     <datalist id="inbound-place-options"></datalist>
                   </div>
                 </div>
+              </div>
+              <div class="panel-body">
                 <div class="field">
                   <div class="field-label">주소</div>
                   <div class="field-control">
@@ -218,6 +218,30 @@
                     <div class="field-label">전화번호</div>
                     <div class="field-control">
                       <input id="input-inbound-phone" class="side-input" type="text">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section class="panel side-panel compact-side-panel">
+              <div class="panel-header">
+                <div class="panel-title">
+                  <h3>PLT / BOX 수량</h3>
+                </div>
+              </div>
+              <div class="panel-body compact-panel-body">
+                <div class="side-qty-row">
+                  <div class="field">
+                    <div class="field-label">PLT</div>
+                    <div class="field-control">
+                      <input id="input-plt-qty" class="side-input compact-side-input" type="text" inputmode="numeric">
+                    </div>
+                  </div>
+                  <div class="field">
+                    <div class="field-label">BOX</div>
+                    <div class="field-control">
+                      <input id="input-box-qty" class="side-input compact-side-input" type="text" inputmode="numeric">
                     </div>
                   </div>
                 </div>
