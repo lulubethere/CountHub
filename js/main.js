@@ -422,6 +422,61 @@ ipcMain.handle("get-form-columns", async (_, code) => {
   }
 });
 
+ipcMain.handle("search-item-locations", async (_, payload) => {
+  try {
+    const data = await db.searchItemLocations({
+      keyword: payload?.keyword,
+      location: payload?.location,
+    });
+    return { ok: true, data };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle("save-item-location", async (_, payload) => {
+  try {
+    const data = payload || {};
+    const duplicate = await db.findDuplicateItemLocation(
+      String(data.productName || "").trim(),
+      String(data.location || "").trim(),
+      data.id ? Number(data.id) : null,
+    );
+    if (duplicate && !data.allowDuplicate) {
+      return {
+        ok: false,
+        duplicate: true,
+        error: "이미 존재하지만 등록하시겠습니까?",
+      };
+    }
+    const saved = await db.saveItemLocation(data);
+    if (!saved) {
+      return { ok: false, error: "품명, 그룹, 위치를 모두 입력해주세요." };
+    }
+    return { ok: true, data: saved };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle("delete-item-location", async (_, payload) => {
+  try {
+    const ok = await db.deleteItemLocation(payload?.id);
+    return ok ? { ok: true } : { ok: false, error: "삭제할 데이터를 찾지 못했습니다." };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle("mark-item-location-missing", async (_, payload) => {
+  try {
+    const data = await db.markItemLocationMissing(payload?.id, payload?.isMissing);
+    return data ? { ok: true, data } : { ok: false, error: "대상을 찾지 못했습니다." };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
 ipcMain.handle("select-excel-file", async () => {
   const result = await dialog.showOpenDialog({
     properties: ["openFile"],

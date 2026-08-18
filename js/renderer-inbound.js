@@ -14,6 +14,8 @@
     return;
   }
 
+  const STORAGE_INBOUND_DEFAULT_PLACE = "countHubInboundDefaultPlace";
+
   // 파일 경로 저장 변수
   let sellerExcelPath = null;
   let verifyExcelPath = null;
@@ -136,7 +138,17 @@ if (checkVerify.ok) {
     const selTemplateSheet = document.getElementById("sel-template-sheet");
     const dateInput = document.getElementById("dateInput");
     const btnTodayDate = document.getElementById("btn-today-date");
-    const inputReleaseCenter = document.getElementById("input-release-center");
+    const inputInboundPlace = document.getElementById("input-inbound-place");
+    const inboundPlaceOptions = document.getElementById("inbound-place-options");
+    const inputInboundAddress = document.getElementById("input-inbound-address");
+    const inputInboundManager = document.getElementById("input-inbound-manager");
+    const inputInboundPhone = document.getElementById("input-inbound-phone");
+    const inputOutboundPlace = document.getElementById("input-outbound-place");
+    const outboundPlaceOptions = document.getElementById("outbound-place-options");
+    const inputOutboundAddress = document.getElementById("input-outbound-address");
+    const inputOutboundManager = document.getElementById("input-outbound-manager");
+    const inputOutboundPhone = document.getElementById("input-outbound-phone");
+    const btnInboundDefault = document.getElementById("btn-inbound-default");
     const btnReset = document.getElementById("btn-reset");
     const btnSettings = document.getElementById("btn-settings");
     const settingsModal = document.getElementById("settings-modal");
@@ -153,6 +165,11 @@ if (checkVerify.ok) {
     const dbBtnAdd = document.getElementById("db-btn-add");
     const settingsSave = document.getElementById("settings-save");
     const settingsCancel = document.getElementById("settings-cancel");
+    const inboundDefaultModal = document.getElementById("inbound-default-modal");
+    const inboundDefaultModalCard = inboundDefaultModal?.querySelector(".mini-modal-card");
+    const selInboundDefaultPlace = document.getElementById("sel-inbound-default-place");
+    const inboundDefaultConfirm = document.getElementById("inbound-default-confirm");
+    const inboundDefaultCancel = document.getElementById("inbound-default-cancel");
     const dbAddModal = document.getElementById("db-add-modal");
     const dbAddModalCard = document.querySelector(".mini-modal-card");
     const dbAddInput = document.getElementById("db-add-input");
@@ -185,6 +202,180 @@ if (checkVerify.ok) {
     let columnDirty = false;
     let sellerFormDirty = false;
     let pendingSellerFormLink = new Map();
+    const placeFields = {
+      inbound: {
+        inputPlace: inputInboundPlace,
+        options: inboundPlaceOptions,
+        inputAddress: inputInboundAddress,
+        inputManager: inputInboundManager,
+        inputPhone: inputInboundPhone,
+        placeMap: new Map(),
+        currentPlaceId: "",
+      },
+      outbound: {
+        inputPlace: inputOutboundPlace,
+        options: outboundPlaceOptions,
+        inputAddress: inputOutboundAddress,
+        inputManager: inputOutboundManager,
+        inputPhone: inputOutboundPhone,
+        placeMap: new Map(),
+        currentPlaceId: "",
+      },
+    };
+
+    function setPlaceDetail(fieldGroup, detail) {
+      if (fieldGroup.inputAddress) fieldGroup.inputAddress.value = detail?.address || "";
+      if (fieldGroup.inputManager) fieldGroup.inputManager.value = detail?.name || "";
+      if (fieldGroup.inputPhone) fieldGroup.inputPhone.value = detail?.phoneNumber || "";
+    }
+
+    function getSavedInboundDefaultPlace() {
+      return (localStorage.getItem(STORAGE_INBOUND_DEFAULT_PLACE) || "").trim();
+    }
+
+    function setSavedInboundDefaultPlace(name) {
+      const value = (name || "").trim();
+      if (value) {
+        localStorage.setItem(STORAGE_INBOUND_DEFAULT_PLACE, value);
+      } else {
+        localStorage.removeItem(STORAGE_INBOUND_DEFAULT_PLACE);
+      }
+      updateInboundDefaultButton();
+    }
+
+    function updateInboundDefaultButton() {
+      if (!btnInboundDefault) return;
+      const savedName = getSavedInboundDefaultPlace();
+      btnInboundDefault.classList.toggle("is-active", !!savedName);
+      btnInboundDefault.title = savedName
+        ? `기본 입고지: ${savedName}`
+        : "기본 입고지를 선택합니다.";
+    }
+
+    async function loadPlaceOptions(fieldGroup) {
+      if (!fieldGroup.options) return;
+      try {
+        const result = await ipcRenderer.invoke("get-inbound-centers");
+        if (result.ok && result.data) {
+          fieldGroup.placeMap = new Map();
+          fieldGroup.options.innerHTML = result.data
+            .map((row) => {
+              const name = row.mainName || "";
+              fieldGroup.placeMap.set(name, String(row.id));
+              return `<option value="${name}"></option>`;
+            })
+            .join("");
+        }
+      } catch (e) {
+        console.error("입출고지 목록 로드 실패:", e);
+      }
+    }
+
+    async function bindPlaceDetail(fieldGroup, id) {
+      if (!id) {
+        fieldGroup.currentPlaceId = "";
+        setPlaceDetail(fieldGroup, null);
+        return;
+      }
+      try {
+        const result = await ipcRenderer.invoke("get-inbound-center-detail", id);
+        if (result.ok && result.data) {
+          fieldGroup.currentPlaceId = String(result.data.id ?? id);
+          setPlaceDetail(fieldGroup, result.data);
+        } else {
+          fieldGroup.currentPlaceId = "";
+          setPlaceDetail(fieldGroup, null);
+        }
+      } catch (e) {
+        console.error("입출고지 상세 로드 실패:", e);
+        fieldGroup.currentPlaceId = "";
+        setPlaceDetail(fieldGroup, null);
+      }
+    }
+
+    async function syncPlaceByName(fieldGroup, rawValue) {
+      const name = (rawValue || "").trim();
+      if (!name) {
+        fieldGroup.currentPlaceId = "";
+        setPlaceDetail(fieldGroup, null);
+        return;
+      }
+      const matchedId = fieldGroup.placeMap.get(name);
+      if (!matchedId) {
+        fieldGroup.currentPlaceId = "";
+        setPlaceDetail(fieldGroup, null);
+        return;
+      }
+      await bindPlaceDetail(fieldGroup, matchedId);
+    }
+
+    async function applySavedInboundDefault({ onlyWhenEmpty = false } = {}) {
+      const savedName = getSavedInboundDefaultPlace();
+      if (!savedName || !inputInboundPlace) {
+        updateInboundDefaultButton();
+        return;
+      }
+      if (onlyWhenEmpty && inputInboundPlace.value.trim()) {
+        updateInboundDefaultButton();
+        return;
+      }
+      inputInboundPlace.value = savedName;
+      await syncPlaceByName(placeFields.inbound, savedName);
+      updateInboundDefaultButton();
+    }
+
+    async function populateInboundDefaultSelect() {
+      await loadPlaceOptions(placeFields.inbound);
+      if (!selInboundDefaultPlace) return;
+      const savedName = getSavedInboundDefaultPlace();
+      const optionNames = Array.from(placeFields.inbound.placeMap.keys());
+      selInboundDefaultPlace.innerHTML =
+        '<option value="">선택 안 함</option>' +
+        optionNames.map((name) => `<option value="${name}">${name}</option>`).join("");
+      selInboundDefaultPlace.value = savedName;
+    }
+
+    async function openInboundDefaultModal() {
+      if (!inboundDefaultModal) return;
+      await populateInboundDefaultSelect();
+      inboundDefaultModal.classList.add("is-open");
+      inboundDefaultModal.setAttribute("aria-hidden", "false");
+      inboundDefaultModalCard?.focus();
+      selInboundDefaultPlace?.focus({ preventScroll: true });
+    }
+
+    function closeInboundDefaultModal() {
+      if (!inboundDefaultModal) return;
+      inboundDefaultModal.classList.remove("is-open");
+      inboundDefaultModal.setAttribute("aria-hidden", "true");
+    }
+
+    function getInboundPlaceValue() {
+      return inputInboundPlace?.value.trim() || "";
+    }
+
+    function getOutboundPlaceValue() {
+      return inputOutboundPlace?.value.trim() || "";
+    }
+
+    function bindPlaceInputEvents(fieldGroup) {
+      fieldGroup.inputPlace?.addEventListener("change", async function () {
+        await syncPlaceByName(fieldGroup, this.value);
+      });
+
+      fieldGroup.inputPlace?.addEventListener("input", function () {
+        const value = this.value.trim();
+        if (!value) {
+          fieldGroup.currentPlaceId = "";
+          setPlaceDetail(fieldGroup, null);
+          return;
+        }
+        if (!fieldGroup.placeMap.has(value)) {
+          fieldGroup.currentPlaceId = "";
+          setPlaceDetail(fieldGroup, null);
+        }
+      });
+    }
 
     btnReset?.addEventListener("click", () => {
       window.location.reload();
@@ -253,16 +444,31 @@ if (checkVerify.ok) {
       const prevType = selType?.value || "";
       const prevShop = selShop?.value || "";
       const prevForm = selTemplateSheet?.value || "";
+      const prevInboundPlace = inputInboundPlace?.value || "";
+      const prevOutboundPlace = inputOutboundPlace?.value || "";
       await Promise.all([
         loadCombo(selSeller, 'get-sellers'),
         loadCombo(selType, 'get-product-types'),
         loadCombo(selShop, 'get-shops'),
         loadCombo(selTemplateSheet, 'get-form'),
+        loadPlaceOptions(placeFields.inbound),
+        loadPlaceOptions(placeFields.outbound),
       ]);
       if (selSeller) selSeller.value = prevSeller;
       if (selType) selType.value = prevType;
       if (selShop) selShop.value = prevShop;
       if (selTemplateSheet) selTemplateSheet.value = prevForm;
+      if (inputInboundPlace) {
+        inputInboundPlace.value = prevInboundPlace;
+        await syncPlaceByName(placeFields.inbound, prevInboundPlace);
+        if (!prevInboundPlace) {
+          await applySavedInboundDefault({ onlyWhenEmpty: true });
+        }
+      }
+      if (inputOutboundPlace) {
+        inputOutboundPlace.value = prevOutboundPlace;
+        await syncPlaceByName(placeFields.outbound, prevOutboundPlace);
+      }
       if (selSeller && selSeller.value) {
         selSeller.dispatchEvent(new Event('change'));
       } else if (selTemplateSheet && selTemplateSheet.value) {
@@ -274,6 +480,28 @@ if (checkVerify.ok) {
     loadCombo(selType, 'get-product-types');
     loadCombo(selShop, 'get-shops');
     loadCombo(selTemplateSheet, 'get-form');
+    Promise.all([
+      loadPlaceOptions(placeFields.inbound),
+      loadPlaceOptions(placeFields.outbound),
+    ]).then(() => applySavedInboundDefault({ onlyWhenEmpty: true }));
+    updateInboundDefaultButton();
+    bindPlaceInputEvents(placeFields.inbound);
+    bindPlaceInputEvents(placeFields.outbound);
+
+    btnInboundDefault?.addEventListener("click", openInboundDefaultModal);
+    inboundDefaultCancel?.addEventListener("click", closeInboundDefaultModal);
+    inboundDefaultModal?.addEventListener("click", (e) => {
+      if (e.target === inboundDefaultModal) closeInboundDefaultModal();
+    });
+    inboundDefaultConfirm?.addEventListener("click", async () => {
+      const selectedName = selInboundDefaultPlace?.value || "";
+      setSavedInboundDefaultPlace(selectedName);
+      if (selectedName) {
+        if (inputInboundPlace) inputInboundPlace.value = selectedName;
+        await syncPlaceByName(placeFields.inbound, selectedName);
+      }
+      closeInboundDefaultModal();
+    });
 
     const nameToFieldId = { 'SKU': 'sku', '상품명': 'product-name', '유통기한': 'expiry', '로트': 'lot', '수량': 'expected-qty' };
 
@@ -1067,7 +1295,7 @@ if (checkVerify.ok) {
           sellerPath: sellerExcelPath,
           sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "",
           shopName: selShop?.options[selShop.selectedIndex]?.text || "",
-          releaseCenter: inputReleaseCenter?.value || "",
+          releaseCenter: getOutboundPlaceValue(),
           dateValue: dateInput?.value || "",
           columnMap,
         });
@@ -1110,7 +1338,7 @@ if (checkVerify.ok) {
           sellerPath: sellerExcelPath,
           centerData: {
             sellerName: selSeller?.options[selSeller.selectedIndex]?.text || "선택",
-            inboundCenter: "",
+            inboundCenter: getInboundPlaceValue(),
             productType: selType?.options[selType.selectedIndex]?.text || "선택",
             shopName: selShop?.options[selShop.selectedIndex]?.text || "선택",
             dateValue: dateInput?.value || ""

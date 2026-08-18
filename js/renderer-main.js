@@ -17,4 +17,7 @@
   document.getElementById('outbound-btn').addEventListener('click', () => {
     window.location.href = '04-02 outbound.html';
   });
+  document.getElementById('item-location-btn').addEventListener('click', () => {
+    window.location.href = '05 item-location.html';
+  });
 })();

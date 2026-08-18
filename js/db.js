@@ -32,6 +32,7 @@ const dbConfig = {
 
 let _client = null;
 let _connected = false;
+let _itemLocationTableReady = false;
 
 /**
  * DB 클라이언트 반환 (싱글톤). 필요 시 새로 생성.
@@ -84,6 +85,49 @@ async function query(text, params) {
     _connected = true;
   }
   return client.query(text, params);
+}
+
+async function ensureItemLocationTable() {
+  if (_itemLocationTableReady) return;
+  await query(`
+    CREATE TABLE IF NOT EXISTS public."ItemLocation" (
+      id BIGSERIAL PRIMARY KEY,
+      product_name TEXT NOT NULL,
+      group_name TEXT DEFAULT '',
+      location TEXT NOT NULL,
+      note TEXT DEFAULT '',
+      worker_id TEXT DEFAULT '',
+      worker_name TEXT DEFAULT '',
+      is_missing BOOLEAN NOT NULL DEFAULT FALSE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await query(`
+    ALTER TABLE public."ItemLocation"
+    ADD COLUMN IF NOT EXISTS group_name TEXT DEFAULT ''
+  `);
+  await query(`
+    ALTER TABLE public."ItemLocation"
+    ADD COLUMN IF NOT EXISTS worker_id TEXT DEFAULT ''
+  `);
+  await query(`
+    ALTER TABLE public."ItemLocation"
+    ADD COLUMN IF NOT EXISTS worker_name TEXT DEFAULT ''
+  `);
+  await query(`
+    ALTER TABLE public."ItemLocation"
+    ADD COLUMN IF NOT EXISTS is_missing BOOLEAN NOT NULL DEFAULT FALSE
+  `);
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_item_location_product_name
+    ON public."ItemLocation" USING gin (to_tsvector('simple', product_name))
+  `);
+  await query(`
+    CREATE INDEX IF NOT EXISTS idx_item_location_location
+    ON public."ItemLocation" USING gin (to_tsvector('simple', location))
+  `);
+  _itemLocationTableReady = true;
 }
 
 /**
@@ -543,6 +587,117 @@ async function deleteExcelTemplate(id) {
   return res.rowCount > 0;
 }
 
+async function searchItemLocations(filters = {}) {
+  await ensureItemLocationTable();
+  const keyword = String(filters.keyword || "").trim();
+  const location = String(filters.location || "").trim();
+  const params = [];
+  const conditions = [];
+
+  if (keyword) {
+    params.push(`%${keyword}%`);
+    conditions.push(`product_name ILIKE $${params.length}`);
+  }
+  if (location) {
+    params.push(`%${location}%`);
+    conditions.push(`location ILIKE $${params.length}`);
+  }
+
+  const whereClause = conditions.length
+    ? `WHERE ${conditions.join(" AND ")}`
+    : "";
+  const res = await query(
+    `SELECT id, product_name, group_name, location, note, worker_name, is_missing, created_at, updated_at
+     FROM public."ItemLocation"
+     ${whereClause}
+     ORDER BY updated_at DESC, id DESC
+     LIMIT 200`,
+    params,
+  );
+  return res.rows || [];
+}
+
+async function findDuplicateItemLocation(productName, location, excludeId) {
+  await ensureItemLocationTable();
+  const params = [productName, location];
+  let sql = `
+    SELECT id
+    FROM public."ItemLocation"
+    WHERE product_name = $1
+      AND location = $2
+  `;
+  if (excludeId) {
+    params.push(excludeId);
+    sql += ` AND id <> $3`;
+  }
+  sql += ` LIMIT 1`;
+  const res = await query(sql, params);
+  return res.rows[0] || null;
+}
+
+async function saveItemLocation(payload = {}) {
+  await ensureItemLocationTable();
+  const id = payload.id ? Number(payload.id) : null;
+  const productName = String(payload.productName || "").trim();
+  const groupName = String(payload.groupName || "").trim();
+  const location = String(payload.location || "").trim();
+  const note = String(payload.note || "").trim();
+  const workerName = String(payload.workerName || "").trim();
+
+  if (!productName || !groupName || !location) return null;
+
+  if (id) {
+    const updateRes = await query(
+      `UPDATE public."ItemLocation"
+       SET product_name = $1,
+           group_name = $2,
+           location = $3,
+           note = $4,
+           worker_name = $5,
+           is_missing = FALSE,
+           updated_at = NOW()
+       WHERE id = $6
+       RETURNING id, product_name, group_name, location, note, worker_name, is_missing, created_at, updated_at`,
+      [productName, groupName, location, note, workerName, id],
+    );
+    return updateRes.rows[0] || null;
+  }
+
+  const insertRes = await query(
+    `INSERT INTO public."ItemLocation" (product_name, group_name, location, note, worker_name)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING id, product_name, group_name, location, note, worker_name, is_missing, created_at, updated_at`,
+    [productName, groupName, location, note, workerName],
+  );
+  return insertRes.rows[0] || null;
+}
+
+async function deleteItemLocation(id) {
+  await ensureItemLocationTable();
+  const itemId = Number(id);
+  if (!Number.isFinite(itemId)) return false;
+  const res = await query(
+    'DELETE FROM public."ItemLocation" WHERE id = $1',
+    [itemId],
+  );
+  return res.rowCount > 0;
+}
+
+async function markItemLocationMissing(id, isMissing) {
+  await ensureItemLocationTable();
+  const itemId = Number(id);
+  if (!Number.isFinite(itemId)) return null;
+  const res = await query(
+    `UPDATE public."ItemLocation"
+     SET is_missing = $1,
+         updated_at = NOW()
+     WHERE id = $2
+     RETURNING id, product_name, group_name, location, note, worker_name, is_missing, created_at, updated_at`,
+    [!!isMissing, itemId],
+  );
+  return res.rows[0] || null;
+}
+
 module.exports = {
   getClient,
   testConnection,
@@ -570,5 +725,10 @@ module.exports = {
   getStatementExcelTemplate,
   updateExcelTemplate,
   deleteExcelTemplate,
+  searchItemLocations,
+  findDuplicateItemLocation,
+  saveItemLocation,
+  deleteItemLocation,
+  markItemLocationMissing,
 };
 

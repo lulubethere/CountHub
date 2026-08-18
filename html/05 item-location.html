@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>CountHub - 품목 위치</title>
+  <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/toastify-js/src/toastify.min.css">
+  <link rel="stylesheet" href="../style/common-style.css">
+  <link rel="stylesheet" href="../style/main-style.css">
+  <link rel="stylesheet" href="../style/item-location-style.css">
+</head>
+<body>
+  <div class="screen">
+    <div id="app-header"></div>
+
+    <main class="item-location-page">
+      <div class="item-shell">
+        <section class="item-hero">
+          <div>
+            <h1>품목 위치 관리</h1>
+            <p>품명과 보관 위치를 등록하고 바로 검색할 수 있습니다.</p>
+          </div>
+          <div class="hero-badge">모바일 연동 준비형 구조</div>
+        </section>
+
+        <section class="item-grid">
+          <article class="panel search-panel">
+            <div class="panel-header">
+              <div class="search-header-left">
+                <h2 class="search-title">품명 검색</h2>
+                <div class="search-inline">
+                  <input id="search-keyword" class="field-input" type="text" maxlength="120" placeholder="품명 일부 입력">
+                  <button id="btn-search" class="btn-primary search-button" type="button">검색</button>
+                  <button id="btn-search-reset" class="btn-secondary search-reset-button" type="button">초기화</button>
+                </div>
+              </div>
+              <div class="panel-header-actions">
+                <button id="btn-create-item" class="btn-accent" type="button">+ 등록</button>
+                <button id="btn-summary-modal" class="btn-secondary summary-trigger" type="button">품목 수량</button>
+              </div>
+            </div>
+
+            <div class="result-meta">
+              <span id="result-count">0건</span>
+              <span id="result-hint">행을 누르면 수정할 수 있습니다.</span>
+            </div>
+
+            <div class="table-wrap">
+              <table class="result-table">
+                <thead>
+                  <tr>
+                    <th><button class="column-filter-btn" type="button" data-column="product_name" data-label="품명">품명</button></th>
+                    <th><button class="column-filter-btn" type="button" data-column="location" data-label="위치">위치</button></th>
+                    <th><button class="column-filter-btn" type="button" data-column="group_name" data-label="그룹">그룹</button></th>
+                    <th><button class="column-filter-btn" type="button" data-column="note" data-label="메모">메모</button></th>
+                    <th>작업자</th>
+                    <th>수정일</th>
+                    <th>관리</th>
+                  </tr>
+                </thead>
+                <tbody id="result-body">
+                  <tr class="empty-row">
+                    <td colspan="7">등록된 데이터가 없습니다.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <div id="filter-popover" class="filter-popover" aria-hidden="true">
+    <div class="filter-popover-header">
+      <strong id="filter-title">필터</strong>
+    </div>
+    <div class="filter-popover-actions">
+      <button id="filter-sort-asc" class="filter-action-btn" type="button">오름차순</button>
+      <button id="filter-sort-desc" class="filter-action-btn" type="button">내림차순</button>
+      <button id="filter-clear" class="filter-action-btn clear" type="button">필터 해제</button>
+    </div>
+    <div class="filter-search-box">
+      <input id="filter-search" class="filter-search-input" type="text" placeholder="값 검색">
+    </div>
+    <div id="filter-options" class="filter-options"></div>
+    <div class="filter-footer">
+      <button id="filter-apply" class="btn-primary" type="button">적용</button>
+    </div>
+  </div>
+
+  <div id="item-modal" class="item-modal" aria-hidden="true">
+    <div class="item-modal-backdrop" data-close="modal"></div>
+    <div class="item-modal-card" role="dialog" aria-modal="true" aria-labelledby="form-title" tabindex="-1">
+      <div class="panel-header item-modal-header">
+        <div>
+          <h2 id="form-title">품목 등록</h2>
+          <p>간단히 입력해두면 검색으로 바로 찾을 수 있습니다.</p>
+        </div>
+      </div>
+
+      <form id="item-form" class="item-form">
+        <input id="item-id" type="hidden">
+
+        <label class="field">
+          <span class="field-label">품명</span>
+          <input id="product-name" class="field-input" type="text" maxlength="120" placeholder="예: 아이폰 15 케이스">
+        </label>
+
+        <div class="field">
+          <div class="field-label field-label-row">
+            <span>그룹</span>
+            <button id="btn-group-settings" class="btn-ghost inline-manage-btn" type="button">그룹관리</button>
+          </div>
+          <select id="group-name" class="field-input">
+            <option value="">그룹 선택</option>
+          </select>
+        </div>
+
+        <label class="field">
+          <span class="field-label">위치</span>
+          <input id="location-name" class="field-input" type="text" maxlength="120" placeholder="예: A-01-03">
+        </label>
+
+        <label class="field">
+          <span class="field-label">메모</span>
+          <textarea id="item-note" class="field-textarea" rows="4" maxlength="300" placeholder="선택사항"></textarea>
+        </label>
+
+        <div class="form-actions">
+          <button id="btn-save-item" class="btn-primary" type="submit">저장</button>
+          <button id="btn-cancel-edit" class="btn-secondary" type="button">수정 취소</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="group-settings-modal" class="item-modal" aria-hidden="true">
+    <div class="item-modal-backdrop" data-close="group-settings-modal"></div>
+    <div class="item-modal-card settings-modal-card" role="dialog" aria-modal="true" aria-labelledby="group-settings-title" tabindex="-1">
+      <div class="panel-header item-modal-header">
+        <div>
+          <h2 id="group-settings-title">그룹 설정</h2>
+          <p>품목 등록에서 사용할 그룹을 관리합니다.</p>
+        </div>
+      </div>
+
+      <div class="settings-add-row">
+        <input id="group-settings-input" class="field-input" type="text" maxlength="50" placeholder="새 그룹명 입력">
+        <button id="btn-add-group" class="btn-primary" type="button">추가</button>
+      </div>
+
+      <div id="group-settings-list" class="group-settings-list"></div>
+    </div>
+  </div>
+
+  <div id="summary-modal" class="item-modal" aria-hidden="true">
+    <div class="item-modal-backdrop" data-close="summary-modal"></div>
+    <div class="item-modal-card summary-modal-card" role="dialog" aria-modal="true" aria-labelledby="summary-title" tabindex="-1">
+      <div class="panel-header item-modal-header">
+        <div>
+          <h2 id="summary-title">등록 품목 수량</h2>
+          <p>현재 등록된 품목 현황입니다.</p>
+        </div>
+      </div>
+
+      <div class="table-wrap summary-table-wrap">
+        <table class="result-table summary-table">
+          <thead>
+            <tr>
+              <th><button class="column-filter-btn summary-filter-btn" type="button" data-summary-column="product_name" data-summary-label="품명">품명</button></th>
+              <th><button class="column-filter-btn summary-filter-btn" type="button" data-summary-column="count" data-summary-label="등록 수량">등록 수량</button></th>
+              <th><button class="column-filter-btn summary-filter-btn" type="button" data-summary-column="group_name" data-summary-label="그룹">그룹</button></th>
+              <th><button class="column-filter-btn summary-filter-btn" type="button" data-summary-column="note" data-summary-label="메모">메모</button></th>
+            </tr>
+          </thead>
+          <tbody id="summary-body">
+            <tr class="empty-row">
+              <td colspan="4">등록된 데이터가 없습니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div id="confirm-modal" class="mini-modal" aria-hidden="true">
+    <div class="mini-modal-card" tabindex="-1">
+      <div id="confirm-title" class="mini-modal-title">확인</div>
+      <div id="confirm-message" class="mini-modal-body confirm-message">진행할까요?</div>
+      <div class="mini-modal-actions confirm-actions">
+        <button id="confirm-cancel" class="btn-secondary" type="button">취소</button>
+        <button id="confirm-ok" class="btn-primary" type="button">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading-overlay" class="loading-overlay" aria-hidden="true">
+    <div class="loading-backdrop"></div>
+    <div class="loading-card" role="status" aria-live="polite">
+      <div class="loading-spinner"></div>
+      <div class="loading-title">로딩 중</div>
+      <div class="loading-text">품목 위치 데이터를 불러오고 있습니다.</div>
+    </div>
+  </div>
+
+  <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/toastify-js"></script>
+  <script src="../js/header.js"></script>
+  <script src="../js/renderer-item-location.js"></script>
+</body>
+</html>
