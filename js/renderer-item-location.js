@@ -1,5 +1,5 @@
 (function () {
-  const { ipcRenderer } = require("electron");
+  const { ipcRenderer, webUtils } = require("electron");
   const Toastify = require("toastify-js");
 
   let user;
@@ -20,10 +20,21 @@
     const DEFAULT_GROUPS = ["마녀", "바닐라코", "무지"];
     const form = document.getElementById("item-form");
     const itemId = document.getElementById("item-id");
+    const singleRegisterPanel = document.getElementById("single-register-panel");
+    const bulkRegisterPanel = document.getElementById("bulk-register-panel");
+    const groupSettingsPanel = document.getElementById("group-settings-panel");
+    const tabSingleRegister = document.getElementById("tab-single-register");
+    const tabBulkRegister = document.getElementById("tab-bulk-register");
     const productNameInput = document.getElementById("product-name");
     const groupNameSelect = document.getElementById("group-name");
     const locationInput = document.getElementById("location-name");
     const noteInput = document.getElementById("item-note");
+    const bulkSelectedFile = document.getElementById("bulk-selected-file");
+    const bulkUploadCard = document.getElementById("bulk-upload-card");
+    const btnOpenBulkTemplate = document.getElementById("btn-open-bulk-template");
+    const btnSelectBulkExcel = document.getElementById("btn-select-bulk-excel");
+    const btnSaveBulkItems = document.getElementById("btn-save-bulk-items");
+    const btnCancelBulk = document.getElementById("btn-cancel-bulk");
     const formTitle = document.getElementById("form-title");
     const resultBody = document.getElementById("result-body");
     const summaryBody = document.getElementById("summary-body");
@@ -37,13 +48,16 @@
     const btnCancelEdit = document.getElementById("btn-cancel-edit");
     const itemModal = document.getElementById("item-modal");
     const itemModalCard = document.querySelector(".item-modal-card");
-    const groupSettingsModal = document.getElementById("group-settings-modal");
-    const groupSettingsModalCard = document.querySelector(".settings-modal-card");
     const groupSettingsInput = document.getElementById("group-settings-input");
     const btnAddGroup = document.getElementById("btn-add-group");
     const groupSettingsList = document.getElementById("group-settings-list");
     const summaryModal = document.getElementById("summary-modal");
     const summaryModalCard = document.querySelector(".summary-modal-card");
+    const bulkPreviewModal = document.getElementById("bulk-preview-modal");
+    const bulkPreviewMessage = document.getElementById("bulk-preview-message");
+    const bulkPreviewSummaryBody = document.getElementById("bulk-preview-summary-body");
+    const btnConfirmBulkRegister = document.getElementById("btn-confirm-bulk-register");
+    const btnCancelBulkPreview = document.getElementById("btn-cancel-bulk-preview");
     const confirmModal = document.getElementById("confirm-modal");
     const confirmTitle = document.getElementById("confirm-title");
     const confirmMessage = document.getElementById("confirm-message");
@@ -74,6 +88,10 @@
     let tempSelectedValues = new Set();
     let confirmResolve = null;
     let itemGroups = [];
+    let registerMode = "single";
+    let selectedBulkExcelPath = "";
+    let pendingBulkAllowDuplicate = false;
+    let loadingDepth = 0;
 
     const currentWorkerName = String(user.name ?? user.username ?? "").trim();
 
@@ -154,9 +172,24 @@
 
     function setLoadingState(isLoading) {
       if (!loadingOverlay) return;
-      loadingOverlay.classList.toggle("is-open", isLoading);
-      loadingOverlay.setAttribute("aria-hidden", isLoading ? "false" : "true");
-      document.body.style.overflow = isLoading ? "hidden" : "";
+      if (isLoading) {
+        loadingDepth += 1;
+      } else {
+        loadingDepth = Math.max(0, loadingDepth - 1);
+      }
+      const shouldShow = loadingDepth > 0;
+      loadingOverlay.classList.toggle("is-open", shouldShow);
+      loadingOverlay.setAttribute("aria-hidden", shouldShow ? "false" : "true");
+      document.body.style.overflow = shouldShow ? "hidden" : "";
+    }
+
+    async function runWithLoading(task) {
+      setLoadingState(true);
+      try {
+        return await task();
+      } finally {
+        setLoadingState(false);
+      }
     }
 
     function openConfirmModal({ title, message, okText, cancelText }) {
@@ -195,7 +228,9 @@
       itemModal.classList.add("is-open");
       itemModal.setAttribute("aria-hidden", "false");
       itemModalCard?.focus();
-      productNameInput.focus();
+      if (registerMode !== "bulk") {
+        productNameInput.focus();
+      }
     }
 
     function closeModal() {
@@ -214,17 +249,21 @@
       summaryModal.setAttribute("aria-hidden", "true");
     }
 
-    function openGroupSettingsModal() {
-      renderGroupSettingsList();
-      groupSettingsModal.classList.add("is-open");
-      groupSettingsModal.setAttribute("aria-hidden", "false");
-      groupSettingsModalCard?.focus();
-      groupSettingsInput?.focus();
+    function openBulkPreviewModal() {
+      bulkPreviewModal.classList.add("is-open");
+      bulkPreviewModal.setAttribute("aria-hidden", "false");
+      btnConfirmBulkRegister?.focus({ preventScroll: true });
     }
 
-    function closeGroupSettingsModal() {
-      groupSettingsModal.classList.remove("is-open");
-      groupSettingsModal.setAttribute("aria-hidden", "true");
+    function closeBulkPreviewModal() {
+      bulkPreviewModal.classList.remove("is-open");
+      bulkPreviewModal.setAttribute("aria-hidden", "true");
+    }
+
+    function openGroupSettingsPanel() {
+      renderGroupSettingsList();
+      setRegisterMode("groups");
+      groupSettingsInput?.focus();
     }
 
     function resetForm() {
@@ -233,8 +272,10 @@
       renderGroupOptions();
       locationInput.value = "";
       noteInput.value = "";
-      formTitle.textContent = "품목 등록";
+      formTitle.textContent = "등록";
       selectedItemId = null;
+      setRegisterMode("single");
+      clearBulkSelection();
       renderRows(lastRows);
     }
 
@@ -248,6 +289,87 @@
       selectedItemId = Number(row.id);
       renderRows(lastRows);
       openModal();
+    }
+
+    function setRegisterMode(mode) {
+      registerMode = ["bulk", "groups"].includes(mode) ? mode : "single";
+      tabSingleRegister?.classList.toggle("is-active", registerMode === "single");
+      tabBulkRegister?.classList.toggle("is-active", registerMode === "bulk");
+      btnGroupSettings?.classList.toggle("is-active", registerMode === "groups");
+      singleRegisterPanel?.classList.toggle("is-active", registerMode === "single");
+      bulkRegisterPanel?.classList.toggle("is-active", registerMode === "bulk");
+      groupSettingsPanel?.classList.toggle("is-active", registerMode === "groups");
+      if (formTitle) {
+        formTitle.textContent = registerMode === "groups" ? "그룹 관리" : "품목 등록";
+      }
+    }
+
+    function clearBulkSelection() {
+      selectedBulkExcelPath = "";
+      pendingBulkAllowDuplicate = false;
+      if (bulkSelectedFile) {
+        bulkSelectedFile.textContent = "선택된 파일 없음";
+      }
+    }
+
+    function setBulkSelectedFile(pathValue) {
+      selectedBulkExcelPath = pathValue || "";
+      if (bulkSelectedFile) {
+        bulkSelectedFile.textContent = selectedBulkExcelPath
+          ? selectedBulkExcelPath.split(/[\\/]/).pop()
+          : "선택된 파일 없음";
+      }
+    }
+
+    function extractPathFromDataTransfer(event) {
+      if (!event || !event.dataTransfer) return "";
+      const uriList = event.dataTransfer.getData("text/uri-list");
+      if (uriList && uriList.startsWith("file:///")) {
+        try {
+          const decoded = decodeURI(uriList.split("\n")[0]).replace(/^file:\/\//i, "");
+          return decoded.replace(/\//g, "\\");
+        } catch (_) {
+          return "";
+        }
+      }
+
+      const text = event.dataTransfer.getData("text/plain");
+      if (text && text.startsWith("file:///")) {
+        try {
+          const decoded = decodeURI(text).replace(/^file:\/\//i, "");
+          return decoded.replace(/\//g, "\\");
+        } catch (_) {
+          return "";
+        }
+      }
+
+      return "";
+    }
+
+    function renderBulkPreviewSummary(summaryRows) {
+      if (!summaryRows?.length) {
+        bulkPreviewSummaryBody.innerHTML = `
+          <tr class="empty-row">
+            <td colspan="4">요약 정보가 없습니다.</td>
+          </tr>
+        `;
+        return;
+      }
+
+      bulkPreviewSummaryBody.innerHTML = summaryRows
+        .map((row) => `
+          <tr>
+            <td>${escapeHtml(row.groupName || "-")}</td>
+            <td>${escapeHtml(row.productName || "-")}</td>
+            <td>${escapeHtml(String(row.count || 0))}</td>
+            <td>${
+              row.isDuplicate
+                ? '<span class="duplicate-status">중복</span>'
+                : '<span class="normal-status">정상</span>'
+            }</td>
+          </tr>
+        `)
+        .join("");
     }
 
     function escapeHtml(value) {
@@ -345,7 +467,7 @@
       if (!rows.length) {
         summaryBody.innerHTML = `
           <tr class="empty-row">
-            <td colspan="3">표시할 품목 수량이 없습니다.</td>
+            <td colspan="4">표시할 품목 수량이 없습니다.</td>
           </tr>
         `;
         return;
@@ -467,7 +589,7 @@
       if (!lastRows.length) {
         resultBody.innerHTML = `
           <tr class="empty-row">
-            <td colspan="6">검색 결과가 없습니다.</td>
+            <td colspan="7">검색 결과가 없습니다.</td>
           </tr>
         `;
         return;
@@ -533,7 +655,7 @@
         return;
       }
 
-      let result = await ipcRenderer.invoke("save-item-location", payload);
+      let result = await runWithLoading(() => ipcRenderer.invoke("save-item-location", payload));
       if (result?.duplicate) {
         const ok = await openConfirmModal({
           title: "중복 등록 확인",
@@ -542,10 +664,12 @@
           cancelText: "취소",
         });
         if (!ok) return;
-        result = await ipcRenderer.invoke("save-item-location", {
-          ...payload,
-          allowDuplicate: true,
-        });
+        result = await runWithLoading(() =>
+          ipcRenderer.invoke("save-item-location", {
+            ...payload,
+            allowDuplicate: true,
+          }),
+        );
       }
       if (!result?.ok) {
         showToast(result?.error || "저장에 실패했습니다.", true);
@@ -558,6 +682,62 @@
       await loadRows();
     }
 
+    async function saveBulkItems() {
+      if (!selectedBulkExcelPath) {
+        showToast("등록할 엑셀 파일을 먼저 첨부해주세요.", true);
+        return;
+      }
+
+      await runWithLoading(async () => {
+        const preview = await ipcRenderer.invoke("preview-item-location-bulk-excel", {
+          path: selectedBulkExcelPath,
+          workerName: currentWorkerName,
+          groups: itemGroups,
+        });
+        if (!preview?.ok) {
+          showToast(preview?.error || "엑셀 파일을 확인해주세요.", true);
+          return;
+        }
+
+        pendingBulkAllowDuplicate =
+          Array.isArray(preview.duplicateRows) && preview.duplicateRows.length > 0;
+        if (bulkPreviewMessage) {
+          bulkPreviewMessage.textContent = pendingBulkAllowDuplicate
+            ? `확인이 필요한 중복 행 ${preview.duplicateRows.length}건이 있습니다.`
+            : "품명/수량을 확인해주세요.";
+        }
+        renderBulkPreviewSummary(preview.summary || []);
+        openBulkPreviewModal();
+      });
+    }
+
+    async function confirmBulkRegister() {
+      await runWithLoading(async () => {
+        let result = await ipcRenderer.invoke("process-item-location-bulk-excel", {
+          path: selectedBulkExcelPath,
+          workerName: currentWorkerName,
+          allowDuplicate: pendingBulkAllowDuplicate,
+          groups: itemGroups,
+        });
+
+        if (result?.duplicate) {
+          showToast(result.error || "중복 데이터가 있습니다.", true);
+          return;
+        }
+
+        if (!result?.ok) {
+          showToast(result?.error || "다중등록에 실패했습니다.", true);
+          return;
+        }
+
+        closeBulkPreviewModal();
+        showToast(`${result.count || 0}건 등록되었습니다.`);
+        closeModal();
+        resetForm();
+        await loadRows();
+      });
+    }
+
     async function deleteItem(id) {
       const ok = await openConfirmModal({
         title: "삭제 확인",
@@ -567,22 +747,25 @@
       });
       if (!ok) return;
 
-      const result = await ipcRenderer.invoke("delete-item-location", { id });
-      if (!result?.ok) {
-        showToast(result?.error || "삭제에 실패했습니다.", true);
-        return;
-      }
+      await runWithLoading(async () => {
+        const result = await ipcRenderer.invoke("delete-item-location", { id });
+        if (!result?.ok) {
+          showToast(result?.error || "삭제에 실패했습니다.", true);
+          return;
+        }
 
-      if (Number(itemId.value) === Number(id)) {
-        closeModal();
-        resetForm();
-      }
-      showToast("삭제되었습니다.");
-      await loadRows();
+        if (Number(itemId.value) === Number(id)) {
+          closeModal();
+          resetForm();
+        }
+        showToast("삭제되었습니다.");
+        await loadRows();
+      });
     }
 
     form?.addEventListener("submit", async (event) => {
       event.preventDefault();
+      if (registerMode !== "single") return;
       await saveItem();
     });
 
@@ -592,7 +775,30 @@
     });
 
     btnGroupSettings?.addEventListener("click", () => {
-      openGroupSettingsModal();
+      openGroupSettingsPanel();
+    });
+
+    btnOpenBulkTemplate?.addEventListener("click", async () => {
+      const result = await runWithLoading(() =>
+        ipcRenderer.invoke("open-item-location-template", {
+          groups: itemGroups,
+        }),
+      );
+      if (!result?.ok) {
+        if (result?.error) {
+          showToast(result.error, true);
+        }
+        return;
+      }
+      setBulkSelectedFile(result.path || "");
+      showToast("양식을 다운로드 폴더에 저장하고 열었습니다.");
+    });
+
+    btnSelectBulkExcel?.addEventListener("click", async () => {
+      const result = await ipcRenderer.invoke("select-excel-file");
+      if (!result?.ok) return;
+      setBulkSelectedFile(result.path || "");
+      showToast("엑셀 파일을 첨부했습니다.");
     });
 
     btnSummaryModal?.addEventListener("click", () => {
@@ -604,6 +810,32 @@
     btnCancelEdit?.addEventListener("click", () => {
       closeModal();
       resetForm();
+    });
+
+    btnSaveBulkItems?.addEventListener("click", async () => {
+      await saveBulkItems();
+    });
+
+    btnConfirmBulkRegister?.addEventListener("click", async () => {
+      await confirmBulkRegister();
+    });
+
+    btnCancelBulkPreview?.addEventListener("click", () => {
+      closeBulkPreviewModal();
+    });
+
+    btnCancelBulk?.addEventListener("click", () => {
+      closeModal();
+      resetForm();
+    });
+
+    tabSingleRegister?.addEventListener("click", () => {
+      setRegisterMode("single");
+      productNameInput?.focus();
+    });
+
+    tabBulkRegister?.addEventListener("click", () => {
+      setRegisterMode("bulk");
     });
 
     itemModal?.addEventListener("click", (event) => {
@@ -619,10 +851,10 @@
       closeSummaryModal();
     });
 
-    groupSettingsModal?.addEventListener("click", (event) => {
-      const closeTarget = event.target.closest("[data-close='group-settings-modal']");
+    bulkPreviewModal?.addEventListener("click", (event) => {
+      const closeTarget = event.target.closest("[data-close='bulk-preview-modal']");
       if (!closeTarget) return;
-      closeGroupSettingsModal();
+      closeBulkPreviewModal();
     });
 
     document.addEventListener("keydown", (event) => {
@@ -633,12 +865,47 @@
       if (event.key === "Escape" && summaryModal?.classList.contains("is-open")) {
         closeSummaryModal();
       }
-      if (event.key === "Escape" && groupSettingsModal?.classList.contains("is-open")) {
-        closeGroupSettingsModal();
+      if (event.key === "Escape" && bulkPreviewModal?.classList.contains("is-open")) {
+        closeBulkPreviewModal();
       }
       if (event.key === "Escape" && confirmModal?.classList.contains("is-open")) {
         closeConfirmModal(false);
       }
+    });
+
+    const setDragState = (isDragging) => {
+      bulkUploadCard?.classList.toggle("is-dragover", isDragging);
+    };
+
+    bulkUploadCard?.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      setDragState(true);
+    });
+
+    bulkUploadCard?.addEventListener("dragleave", (event) => {
+      if (bulkUploadCard.contains(event.relatedTarget)) return;
+      setDragState(false);
+    });
+
+    bulkUploadCard?.addEventListener("drop", (event) => {
+      event.preventDefault();
+      setDragState(false);
+      const files = Array.from(event.dataTransfer?.files || []);
+      const file = files.find((item) => /\.(xlsx|xls)$/i.test(item.name || ""));
+      if (!file) {
+        showToast("엑셀 파일(.xlsx, .xls)을 드래그해주세요.", true);
+        return;
+      }
+      const filePath =
+        (webUtils?.getPathForFile ? webUtils.getPathForFile(file) : file?.path) ||
+        extractPathFromDataTransfer(event) ||
+        "";
+      if (!filePath) {
+        showToast("파일 경로를 읽을 수 없습니다. 버튼 클릭으로 첨부해주세요.", true);
+        return;
+      }
+      setBulkSelectedFile(filePath);
+      showToast("엑셀 파일을 첨부했습니다.");
     });
 
     btnAddGroup?.addEventListener("click", () => {
@@ -738,10 +1005,12 @@
           });
           if (!ok) return;
 
-          const result = await ipcRenderer.invoke("mark-item-location-missing", {
-            id,
-            isMissing: !row.is_missing,
-          });
+          const result = await runWithLoading(() =>
+            ipcRenderer.invoke("mark-item-location-missing", {
+              id,
+              isMissing: !row.is_missing,
+            }),
+          );
           if (!result?.ok) {
             showToast(result?.error || "상태 변경에 실패했습니다.", true);
             return;
@@ -889,6 +1158,7 @@
     loadGroups();
     renderGroupOptions();
     renderGroupSettingsList();
+    clearBulkSelection();
 
     loadRows().catch((error) => {
       console.error(error);

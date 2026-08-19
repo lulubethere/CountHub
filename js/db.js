@@ -33,6 +33,7 @@ const dbConfig = {
 let _client = null;
 let _connected = false;
 let _itemLocationTableReady = false;
+let _itemLocationTemplateTableReady = false;
 
 /**
  * DB 클라이언트 반환 (싱글톤). 필요 시 새로 생성.
@@ -128,6 +129,19 @@ async function ensureItemLocationTable() {
     ON public."ItemLocation" USING gin (to_tsvector('simple', location))
   `);
   _itemLocationTableReady = true;
+}
+
+async function ensureItemLocationTemplateTable() {
+  if (_itemLocationTemplateTableReady) return;
+  await query(`
+    CREATE TABLE IF NOT EXISTS public."ItemLocationTemplate" (
+      id INTEGER PRIMARY KEY,
+      template_file BYTEA,
+      filename TEXT DEFAULT '',
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  _itemLocationTemplateTableReady = true;
 }
 
 /**
@@ -698,6 +712,33 @@ async function markItemLocationMissing(id, isMissing) {
   return res.rows[0] || null;
 }
 
+async function getItemLocationExcelTemplate() {
+  await ensureItemLocationTemplateTable();
+  const res = await query(
+    `SELECT template_file, filename
+     FROM public."ItemLocationTemplate"
+     WHERE id = 1
+     LIMIT 1`,
+    [],
+  );
+  return res.rows[0] || null;
+}
+
+async function saveItemLocationExcelTemplate(buffer, filename) {
+  await ensureItemLocationTemplateTable();
+  if (!buffer) return false;
+  await query(
+    `INSERT INTO public."ItemLocationTemplate" (id, template_file, filename, updated_at)
+     VALUES (1, $1, $2, NOW())
+     ON CONFLICT (id)
+     DO UPDATE SET template_file = EXCLUDED.template_file,
+                   filename = EXCLUDED.filename,
+                   updated_at = NOW()`,
+    [buffer, filename || "품목위치_다중등록_양식.xlsx"],
+  );
+  return true;
+}
+
 module.exports = {
   getClient,
   testConnection,
@@ -730,5 +771,7 @@ module.exports = {
   saveItemLocation,
   deleteItemLocation,
   markItemLocationMissing,
+  getItemLocationExcelTemplate,
+  saveItemLocationExcelTemplate,
 };
 

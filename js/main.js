@@ -1,5 +1,6 @@
 ﻿const { app, BrowserWindow, ipcMain, dialog } = require("electron");
 const path = require("path");
+const shell = require("electron").shell;
 const { execFile } = require("child_process");
 const { pathToFileURL } = require("url");
 const db = require("./db.js");
@@ -250,6 +251,211 @@ function isBusyFileError(error) {
   return code === "EBUSY" || code === "EPERM" || code === "EACCES";
 }
 
+function buildIndexedFilePath(targetPath, index) {
+  const ext = path.extname(targetPath);
+  const baseName = path.basename(targetPath, ext);
+  const dirName = path.dirname(targetPath);
+  return path.join(dirName, `${baseName} (${index})${ext}`);
+}
+
+function writeBufferToAvailablePath(buffer, targetPath, maxAttempts = 30) {
+  let lastError = null;
+
+  for (let index = 0; index <= maxAttempts; index += 1) {
+    const candidatePath =
+      index === 0 ? targetPath : buildIndexedFilePath(targetPath, index);
+
+    try {
+      fs.writeFileSync(candidatePath, Buffer.from(buffer));
+      return candidatePath;
+    } catch (error) {
+      lastError = error;
+      if (!isBusyFileError(error)) throw error;
+    }
+  }
+
+  throw lastError || new Error("엑셀 양식을 저장하지 못했습니다.");
+}
+
+async function buildItemLocationTemplateBuffer(groups = []) {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet("품목위치등록");
+  worksheet.addRow(["품명", "그룹", "위치", "메모"]);
+  worksheet.getRow(1).font = { bold: true };
+  worksheet.columns = [
+    { width: 28 },
+    { width: 18 },
+    { width: 22 },
+    { width: 28 },
+  ];
+  worksheet.views = [{ state: "frozen", ySplit: 1 }];
+
+  const normalizedGroups = Array.from(
+    new Set(
+      (groups || [])
+        .map((group) => String(group || "").trim())
+        .filter(Boolean),
+    ),
+  );
+
+  if (normalizedGroups.length) {
+    const hiddenSheet = workbook.addWorksheet("__groups");
+    normalizedGroups.forEach((group, index) => {
+      hiddenSheet.getCell(`A${index + 1}`).value = group;
+    });
+    hiddenSheet.state = "veryHidden";
+
+    for (let rowIndex = 2; rowIndex <= 500; rowIndex += 1) {
+      worksheet.getCell(`B${rowIndex}`).dataValidation = {
+        type: "list",
+        allowBlank: false,
+        formulae: [`'__groups'!$A$1:$A$${normalizedGroups.length}`],
+        showErrorMessage: true,
+        errorStyle: "error",
+        errorTitle: "그룹 선택 오류",
+        error: "등록된 그룹만 선택할 수 있습니다.",
+        promptTitle: "그룹 선택",
+        prompt: "드롭다운에서 등록된 그룹을 선택해주세요.",
+        showInputMessage: true,
+      };
+    }
+  }
+
+  return workbook.xlsx.writeBuffer();
+}
+
+async function ensureItemLocationTemplateStored(groups = []) {
+  const buffer = await buildItemLocationTemplateBuffer(groups);
+  await db.saveItemLocationExcelTemplate(
+    Buffer.from(buffer),
+    "품목위치_다중등록_양식.xlsx",
+  );
+  return db.getItemLocationExcelTemplate();
+}
+
+async function readItemLocationBulkExcel(filePath) {
+  if (!filePath) {
+    throw new Error("엑셀 파일 경로가 없습니다.");
+  }
+
+  const workbook = new ExcelJS.Workbook();
+  const ext = path.extname(filePath).toLowerCase();
+  if (ext === ".xls") {
+    const tempXls = XLSX.readFile(filePath);
+    const buffer = XLSX.write(tempXls, { type: "buffer", bookType: "xlsx" });
+    await workbook.xlsx.load(buffer);
+  } else {
+    await workbook.xlsx.readFile(filePath);
+  }
+
+  const sheet = workbook.worksheets[0];
+  if (!sheet) {
+    throw new Error("엑셀 시트를 찾지 못했습니다.");
+  }
+
+  const headerRow = sheet.getRow(1);
+  const headers = [];
+  for (let i = 1; i <= 4; i += 1) {
+    headers.push(String(headerRow.getCell(i).value || "").trim());
+  }
+  if (headers.join("|") !== "품명|그룹|위치|메모") {
+    throw new Error("양식 첫 행은 품명, 그룹, 위치, 메모 순서여야 합니다.");
+  }
+
+  const rows = [];
+  for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber += 1) {
+    const row = sheet.getRow(rowNumber);
+    const productName = String(row.getCell(1).text || "").trim();
+    const groupName = String(row.getCell(2).text || "").trim();
+    const location = String(row.getCell(3).text || "").trim();
+    const note = String(row.getCell(4).text || "").trim();
+    if (!productName && !groupName && !location && !note) continue;
+    rows.push({
+      rowNumber,
+      productName,
+      groupName,
+      location,
+      note,
+    });
+  }
+
+  return rows;
+}
+
+async function buildItemLocationBulkPreview(filePath, workerName, groups = []) {
+  const rows = await readItemLocationBulkExcel(filePath);
+  if (!rows.length) {
+    return { ok: false, error: "등록할 데이터가 없습니다." };
+  }
+
+  const allowedGroups = new Set(
+    (groups || [])
+      .map((group) => String(group || "").trim())
+      .filter(Boolean),
+  );
+  const duplicateRowSet = new Set();
+  const summaryMap = new Map();
+  const rowKeyMap = new Map();
+
+  for (const row of rows) {
+    if (!row.productName || !row.groupName || !row.location) {
+      return {
+        ok: false,
+        error: `${row.rowNumber}행의 품명, 그룹, 위치를 확인해주세요.`,
+      };
+    }
+
+    if (allowedGroups.size && !allowedGroups.has(row.groupName)) {
+      return {
+        ok: false,
+        error: `${row.rowNumber}행의 그룹이 등록된 목록에 없습니다.`,
+      };
+    }
+
+    const rowKey = `${row.productName}__${row.location}`;
+    const existingRowNumbers = rowKeyMap.get(rowKey) || [];
+    if (existingRowNumbers.length) {
+      existingRowNumbers.forEach((rowNumber) => duplicateRowSet.add(rowNumber));
+      duplicateRowSet.add(row.rowNumber);
+    }
+    existingRowNumbers.push(row.rowNumber);
+    rowKeyMap.set(rowKey, existingRowNumbers);
+
+    const duplicate = await db.findDuplicateItemLocation(
+      row.productName,
+      row.location,
+      null,
+    );
+    if (duplicate) duplicateRowSet.add(row.rowNumber);
+
+    const summaryKey = `${row.groupName}__${row.productName}`;
+    const current = summaryMap.get(summaryKey) || {
+      groupName: row.groupName,
+      productName: row.productName,
+      count: 0,
+      isDuplicate: false,
+    };
+    current.count += 1;
+    if (duplicate || existingRowNumbers.length > 1) current.isDuplicate = true;
+    summaryMap.set(summaryKey, current);
+  }
+
+  const duplicateRows = Array.from(duplicateRowSet).sort((a, b) => a - b);
+
+  return {
+    ok: true,
+    rows: rows.map((row) => ({
+      productName: row.productName,
+      groupName: row.groupName,
+      location: row.location,
+      note: row.note,
+      workerName,
+    })),
+    duplicateRows,
+    summary: Array.from(summaryMap.values()),
+  };
+}
+
 async function saveWorkbookOrThrowBusy(workbook, targetPath) {
   try {
     await workbook.toFileAsync(targetPath);
@@ -454,6 +660,151 @@ ipcMain.handle("save-item-location", async (_, payload) => {
       return { ok: false, error: "품명, 그룹, 위치를 모두 입력해주세요." };
     }
     return { ok: true, data: saved };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle("save-item-locations-bulk", async (_, payload) => {
+  try {
+    const rows = Array.isArray(payload?.rows) ? payload.rows : [];
+    const allowDuplicate = !!payload?.allowDuplicate;
+    if (!rows.length) {
+      return { ok: false, error: "등록할 데이터가 없습니다." };
+    }
+
+    const duplicateRows = [];
+    for (let i = 0; i < rows.length; i += 1) {
+      const row = rows[i] || {};
+      const productName = String(row.productName || "").trim();
+      const groupName = String(row.groupName || "").trim();
+      const location = String(row.location || "").trim();
+      if (!productName || !groupName || !location) {
+        return {
+          ok: false,
+          error: `${i + 1}번째 행에 필수값(품명, 그룹, 위치)이 비어 있습니다.`,
+        };
+      }
+
+      const duplicate = await db.findDuplicateItemLocation(productName, location, null);
+      if (duplicate) duplicateRows.push(i + 1);
+    }
+
+    if (duplicateRows.length && !allowDuplicate) {
+      return {
+        ok: false,
+        duplicate: true,
+        duplicateCount: duplicateRows.length,
+        duplicateRows,
+        error: `중복 데이터 ${duplicateRows.length}건이 있습니다. 계속 등록하시겠습니까?`,
+      };
+    }
+
+    let savedCount = 0;
+    for (const row of rows) {
+      const saved = await db.saveItemLocation(row);
+      if (!saved) {
+        return { ok: false, error: "다중등록 저장 중 오류가 발생했습니다." };
+      }
+      savedCount += 1;
+    }
+
+    return { ok: true, count: savedCount };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle("download-item-location-template", async (_, payload) => {
+  try {
+    const template = await ensureItemLocationTemplateStored(payload?.groups || []);
+    if (!template?.template_file) {
+      return { ok: false, error: "양식을 준비하지 못했습니다." };
+    }
+
+    const defaultFileName = template.filename || "품목위치_다중등록_양식.xlsx";
+    const { filePath, canceled } = await dialog.showSaveDialog({
+      title: "품목 위치 다중등록 양식 저장",
+      defaultPath: path.join(app.getPath("downloads"), defaultFileName),
+      filters: [{ name: "Excel Files", extensions: ["xlsx"] }],
+    });
+
+    if (canceled || !filePath) {
+      return { ok: false, error: "작업이 취소되었습니다." };
+    }
+
+    const savedPath = writeBufferToAvailablePath(template.template_file, filePath);
+    return { ok: true, path: savedPath };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle("open-item-location-template", async (_, payload) => {
+  try {
+    const template = await ensureItemLocationTemplateStored(payload?.groups || []);
+    if (!template?.template_file) {
+      return { ok: false, error: "양식을 준비하지 못했습니다." };
+    }
+
+    const defaultFileName = template.filename || "품목위치_다중등록_양식.xlsx";
+    const targetPath = path.join(app.getPath("downloads"), defaultFileName);
+    const savedPath = writeBufferToAvailablePath(template.template_file, targetPath);
+    const openError = await shell.openPath(savedPath);
+    if (openError) {
+      return { ok: false, error: openError };
+    }
+    return { ok: true, path: savedPath };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle("preview-item-location-bulk-excel", async (_, payload) => {
+  try {
+    return await buildItemLocationBulkPreview(
+      payload?.path,
+      String(payload?.workerName || "").trim(),
+      payload?.groups || [],
+    );
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
+ipcMain.handle("process-item-location-bulk-excel", async (_, payload) => {
+  try {
+    const filePath = payload?.path;
+    const workerName = String(payload?.workerName || "").trim();
+    const allowDuplicate = !!payload?.allowDuplicate;
+    const preview = await buildItemLocationBulkPreview(
+      filePath,
+      workerName,
+      payload?.groups || [],
+    );
+    if (!preview?.ok) return preview;
+    const rows = preview.rows || [];
+    const duplicateRows = preview.duplicateRows || [];
+
+    if (duplicateRows.length && !allowDuplicate) {
+      return {
+        ok: false,
+        duplicate: true,
+        duplicateRows,
+        error: `중복 데이터 ${duplicateRows.length}건이 있습니다. 계속 등록하시겠습니까?`,
+      };
+    }
+
+    let savedCount = 0;
+    for (const row of rows) {
+      const saved = await db.saveItemLocation(row);
+      if (!saved) {
+        return { ok: false, error: "다중등록 저장 중 오류가 발생했습니다." };
+      }
+      savedCount += 1;
+    }
+
+    return { ok: true, count: savedCount };
   } catch (e) {
     return { ok: false, error: e.message };
   }

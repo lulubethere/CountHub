@@ -73,10 +73,12 @@
   <div id="filter-popover" class="filter-popover" aria-hidden="true">
     <div class="filter-popover-header">
       <strong id="filter-title">필터</strong>
+      <div class="filter-sort-actions">
+        <button id="filter-sort-asc" class="filter-action-btn icon-btn sort-icon-btn asc" type="button" aria-label="오름차순" title="오름차순"></button>
+        <button id="filter-sort-desc" class="filter-action-btn icon-btn sort-icon-btn desc" type="button" aria-label="내림차순" title="내림차순"></button>
+      </div>
     </div>
     <div class="filter-popover-actions">
-      <button id="filter-sort-asc" class="filter-action-btn" type="button">오름차순</button>
-      <button id="filter-sort-desc" class="filter-action-btn" type="button">내림차순</button>
       <button id="filter-clear" class="filter-action-btn clear" type="button">필터 해제</button>
     </div>
     <div class="filter-search-box">
@@ -90,66 +92,96 @@
 
   <div id="item-modal" class="item-modal" aria-hidden="true">
     <div class="item-modal-backdrop" data-close="modal"></div>
-    <div class="item-modal-card" role="dialog" aria-modal="true" aria-labelledby="form-title" tabindex="-1">
+    <div class="item-modal-card item-register-card" role="dialog" aria-modal="true" aria-labelledby="form-title" tabindex="-1">
       <div class="panel-header item-modal-header">
         <div>
           <h2 id="form-title">품목 등록</h2>
-          <p>간단히 입력해두면 검색으로 바로 찾을 수 있습니다.</p>
         </div>
+      </div>
+
+      <div class="register-tabs">
+        <button id="tab-single-register" class="register-tab is-active" type="button" data-register-tab="single">개별등록</button>
+        <button id="tab-bulk-register" class="register-tab" type="button" data-register-tab="bulk">다중등록</button>
+        <button id="btn-group-settings" class="register-tab register-manage-btn" type="button">그룹관리</button>
       </div>
 
       <form id="item-form" class="item-form">
         <input id="item-id" type="hidden">
 
-        <label class="field">
-          <span class="field-label">품명</span>
-          <input id="product-name" class="field-input" type="text" maxlength="120" placeholder="예: 아이폰 15 케이스">
-        </label>
+        <div id="single-register-panel" class="register-panel is-active">
+          <label class="field">
+            <span class="field-label">품명</span>
+            <input id="product-name" class="field-input" type="text" maxlength="120" placeholder="예: 태블릿PC">
+          </label>
 
-        <div class="field">
-          <div class="field-label field-label-row">
-            <span>그룹</span>
-            <button id="btn-group-settings" class="btn-ghost inline-manage-btn" type="button">그룹관리</button>
+          <div class="field">
+            <span class="field-label">그룹</span>
+            <select id="group-name" class="field-input">
+              <option value="">그룹 선택</option>
+            </select>
           </div>
-          <select id="group-name" class="field-input">
-            <option value="">그룹 선택</option>
-          </select>
+
+          <label class="field">
+            <span class="field-label">위치</span>
+            <input id="location-name" class="field-input" type="text" maxlength="120" placeholder="예: A-01-03">
+          </label>
+
+          <label class="field">
+            <span class="field-label">메모</span>
+            <textarea id="item-note" class="field-textarea" rows="4" maxlength="300" placeholder="선택사항"></textarea>
+          </label>
+
+          <div class="form-actions">
+            <button id="btn-save-item" class="btn-primary" type="submit">등록</button>
+            <button id="btn-cancel-edit" class="btn-secondary" type="button">취소</button>
+          </div>
         </div>
 
-        <label class="field">
-          <span class="field-label">위치</span>
-          <input id="location-name" class="field-input" type="text" maxlength="120" placeholder="예: A-01-03">
-        </label>
+        <div id="bulk-register-panel" class="register-panel">
+          <div class="bulk-flow-strip" aria-label="다중등록 순서">
+            <span class="bulk-flow-step"><strong>1</strong> 양식 열기</span>
+            <span class="bulk-flow-step"><strong>2</strong> 파일 첨부</span>
+            <span class="bulk-flow-step"><strong>3</strong> 등록 실행</span>
+          </div>
 
-        <label class="field">
-          <span class="field-label">메모</span>
-          <textarea id="item-note" class="field-textarea" rows="4" maxlength="300" placeholder="선택사항"></textarea>
-        </label>
+          <div class="bulk-actions-row">
+            <button id="btn-open-bulk-template" class="btn-primary" type="button">양식 열기</button>
+            <div class="bulk-actions-copy">
+              <div class="bulk-actions-title">엑셀 양식을 열어 작성한 뒤 바로 등록하세요.</div>
+              <div class="bulk-actions-desc">그룹은 저장된 목록만 입력할 수 있고, 중복 여부는 등록 전에 한 번 더 확인됩니다.</div>
+            </div>
+          </div>
 
-        <div class="form-actions">
-          <button id="btn-save-item" class="btn-primary" type="submit">저장</button>
-          <button id="btn-cancel-edit" class="btn-secondary" type="button">수정 취소</button>
+          <div id="bulk-upload-card" class="bulk-upload-card">
+            <div class="bulk-upload-title">엑셀 첨부</div>
+            <div class="bulk-upload-desc">버튼으로 첨부하거나 이 영역에 드래그해서 놓아주세요.</div>
+            <div class="bulk-upload-desc">양식 열기 버튼을 누르면 해당 엑셀이 자동으로 첨부됩니다.</div>
+            <div class="bulk-upload-actions">
+              <button id="btn-select-bulk-excel" class="btn-secondary" type="button">엑셀 첨부</button>
+              <span id="bulk-selected-file" class="bulk-selected-file">선택된 파일 없음</span>
+            </div>
+          </div>
+
+          <div class="form-actions">
+            <button id="btn-save-bulk-items" class="btn-primary" type="button">등록</button>
+            <button id="btn-cancel-bulk" class="btn-secondary" type="button">취소</button>
+          </div>
+        </div>
+
+        <div id="group-settings-panel" class="register-panel">
+          <div class="group-panel-copy">
+            <div class="group-panel-title">그룹 설정</div>
+            <div class="group-panel-desc">품목 등록에서 사용할 그룹을 추가하거나 삭제할 수 있습니다.</div>
+          </div>
+
+          <div class="settings-add-row">
+            <input id="group-settings-input" class="field-input" type="text" maxlength="50" placeholder="새 그룹명 입력">
+            <button id="btn-add-group" class="btn-primary group-add-btn" type="button">그룹 추가</button>
+          </div>
+
+          <div id="group-settings-list" class="group-settings-list"></div>
         </div>
       </form>
-    </div>
-  </div>
-
-  <div id="group-settings-modal" class="item-modal" aria-hidden="true">
-    <div class="item-modal-backdrop" data-close="group-settings-modal"></div>
-    <div class="item-modal-card settings-modal-card" role="dialog" aria-modal="true" aria-labelledby="group-settings-title" tabindex="-1">
-      <div class="panel-header item-modal-header">
-        <div>
-          <h2 id="group-settings-title">그룹 설정</h2>
-          <p>품목 등록에서 사용할 그룹을 관리합니다.</p>
-        </div>
-      </div>
-
-      <div class="settings-add-row">
-        <input id="group-settings-input" class="field-input" type="text" maxlength="50" placeholder="새 그룹명 입력">
-        <button id="btn-add-group" class="btn-primary" type="button">추가</button>
-      </div>
-
-      <div id="group-settings-list" class="group-settings-list"></div>
     </div>
   </div>
 
@@ -190,6 +222,41 @@
       <div class="mini-modal-actions confirm-actions">
         <button id="confirm-cancel" class="btn-secondary" type="button">취소</button>
         <button id="confirm-ok" class="btn-primary" type="button">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="bulk-preview-modal" class="item-modal" aria-hidden="true">
+    <div class="item-modal-backdrop" data-close="bulk-preview-modal"></div>
+    <div class="item-modal-card summary-modal-card" role="dialog" aria-modal="true" aria-labelledby="bulk-preview-title" tabindex="-1">
+      <div class="panel-header item-modal-header">
+        <div>
+          <h2 id="bulk-preview-title">다중등록 확인</h2>
+          <p id="bulk-preview-message">등록 전 요약입니다.</p>
+        </div>
+      </div>
+
+      <div class="table-wrap summary-table-wrap">
+        <table class="result-table summary-table">
+          <thead>
+            <tr>
+              <th>그룹</th>
+              <th>품명</th>
+              <th>수량</th>
+              <th>중복여부</th>
+            </tr>
+          </thead>
+          <tbody id="bulk-preview-summary-body">
+            <tr class="empty-row">
+              <td colspan="4">요약 정보가 없습니다.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="form-actions">
+        <button id="btn-confirm-bulk-register" class="btn-primary" type="button">등록</button>
+        <button id="btn-cancel-bulk-preview" class="btn-secondary" type="button">취소</button>
       </div>
     </div>
   </div>
