@@ -1,0 +1,9 @@
+{
+  "appId": "com.counthub.mobile",
+  "appName": "카운트허브",
+  "webDir": "mobile-web",
+  "bundledWebRuntime": false,
+  "server": {
+    "cleartext": true
+  }
+}

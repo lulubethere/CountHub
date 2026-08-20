@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>CountHub Mobile</title>
+  <link rel="stylesheet" href="../style/common-style.css">
+  <link rel="stylesheet" href="../style/mobile-item-location.css">
+</head>
+<body>
+  <div id="boot-splash" class="boot-splash">
+    <div class="boot-card">
+      <div class="boot-brand">CountHub Mobile</div>
+      <div class="boot-title">품목 위치 준비 중</div>
+      <div class="boot-spinner"></div>
+    </div>
+  </div>
+
+  <div class="mobile-shell">
+    <header class="mobile-topbar">
+      <div>
+        <h1>품목 위치</h1>
+      </div>
+      <div class="topbar-actions">
+        <div id="current-user-label" class="user-chip hidden">작업자 -</div>
+        <button id="logout-btn" class="ghost-chip" type="button">로그아웃</button>
+      </div>
+    </header>
+
+    <main class="mobile-page">
+      <section id="connect-card" class="mobile-card connect-card hidden">
+        <div class="card-title-row">
+          <div>
+            <div class="card-title">연결 설정</div>
+            <div class="card-desc">갤럭시에서는 `localhost` 대신 PC IP를 입력하세요.</div>
+          </div>
+          <span id="api-status-chip" class="status-chip idle">미확인</span>
+        </div>
+        <div class="inline-field">
+          <input id="api-base-url" class="mobile-input" type="text" placeholder="예: http://192.168.0.10:3100">
+          <button id="btn-save-api" class="secondary-btn" type="button">저장</button>
+        </div>
+        <div class="server-guide">
+          <div class="server-guide-title">PC 접속 주소 추천</div>
+          <div id="server-address-list" class="server-address-list">
+            <div class="server-address-empty">주소를 확인하는 중입니다.</div>
+          </div>
+        </div>
+        <button id="btn-check-api" class="secondary-btn wide-btn" type="button">API 연결 확인</button>
+      </section>
+
+      <section id="login-card" class="mobile-card">
+        <div class="card-title">작업자 로그인</div>
+        <div class="card-desc">처음 한 번만 로그인하면 다음부터는 바로 작업 화면으로 들어갑니다.</div>
+        <div class="stack-field">
+          <input id="login-name" class="mobile-input" type="text" maxlength="50" placeholder="이름 입력">
+          <button id="btn-login" class="primary-btn wide-btn" type="button">로그인</button>
+        </div>
+      </section>
+
+      <section id="workspace-card" class="workspace hidden">
+        <section class="mobile-card compact-card">
+          <div class="search-row">
+            <input id="search-keyword" class="mobile-input" type="text" maxlength="120" placeholder="품명 검색">
+            <button id="btn-open-create" class="primary-btn small-btn" type="button">+ 등록</button>
+            <button id="btn-search" class="primary-btn search-btn" type="button">검색</button>
+          </div>
+        </section>
+
+        <section class="mobile-card list-card">
+          <div class="card-title-row">
+            <div class="card-title">검색 결과</div>
+            <div id="result-count" class="count-chip">0건</div>
+          </div>
+          <div class="mobile-list-header">
+            <div>품명</div>
+            <div>위치</div>
+            <div>그룹</div>
+            <div>관리</div>
+          </div>
+          <div class="item-list-scroll">
+            <div id="item-list" class="item-list">
+              <div class="empty-state">데이터를 불러오는 중입니다.</div>
+            </div>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <footer class="mobile-tab-placeholder">
+      <nav class="mobile-tab-line" aria-label="하단 탭">
+        <button class="mobile-tab-btn is-active" type="button">
+          <span class="mobile-tab-icon" aria-hidden="true">⌂</span>
+          <span class="mobile-tab-label">홈</span>
+        </button>
+        <button class="mobile-tab-btn" type="button">
+          <span class="mobile-tab-icon" aria-hidden="true">⌕</span>
+          <span class="mobile-tab-label">품목찾기</span>
+        </button>
+        <button class="mobile-tab-btn" type="button">
+          <span class="mobile-tab-icon" aria-hidden="true">•</span>
+          <span class="mobile-tab-label">준비중</span>
+        </button>
+        <button class="mobile-tab-btn" type="button">
+          <span class="mobile-tab-icon" aria-hidden="true">•</span>
+          <span class="mobile-tab-label">준비중</span>
+        </button>
+      </nav>
+    </footer>
+  </div>
+
+  <div id="item-sheet" class="sheet hidden" aria-hidden="true">
+    <div class="sheet-backdrop" data-close-sheet="true"></div>
+    <div class="sheet-card" role="dialog" aria-modal="true" aria-labelledby="sheet-title">
+      <div class="sheet-head">
+        <div>
+          <div id="sheet-title" class="sheet-title">품목 등록</div>
+          <div class="sheet-desc">모바일에서는 꼭 필요한 항목만 빠르게 입력합니다.</div>
+        </div>
+      </div>
+
+      <form id="item-form" class="sheet-form">
+        <input id="item-id" type="hidden">
+        <label class="stack-field" data-sheet-field>
+          <span class="field-label">품명</span>
+          <input id="product-name" class="mobile-input" type="text" maxlength="120" placeholder="예: 태블릿PC">
+        </label>
+        <label class="stack-field" data-sheet-field>
+          <span class="field-label">그룹</span>
+          <select id="group-name" class="mobile-input mobile-select"></select>
+        </label>
+        <label class="stack-field" data-sheet-field>
+          <span class="field-label">위치</span>
+          <input id="location-name" class="mobile-input" type="text" maxlength="120" placeholder="예: A-01-03">
+        </label>
+        <label class="stack-field" data-sheet-field>
+          <span class="field-label">메모</span>
+          <textarea id="item-note" class="mobile-textarea" rows="3" maxlength="300" placeholder="선택사항"></textarea>
+        </label>
+        <div class="sheet-actions">
+          <button id="btn-save-item" class="primary-btn wide-btn" type="submit">저장</button>
+          <button id="btn-cancel-sheet" class="secondary-btn wide-btn" type="button">취소</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="confirm-modal" class="mini-modal hidden" aria-hidden="true">
+    <div class="mini-modal-card" tabindex="-1">
+      <div id="confirm-title" class="mini-modal-title">확인</div>
+      <div id="confirm-message" class="mini-modal-body">진행할까요?</div>
+      <div class="mini-modal-actions">
+        <button id="confirm-cancel" class="secondary-btn mini-btn" type="button">취소</button>
+        <button id="confirm-ok" class="primary-btn mini-btn" type="button">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="../js/mobile-runtime-config.js"></script>
+  <script src="../js/mobile-item-location.js"></script>
+</body>
+</html>

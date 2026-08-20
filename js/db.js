@@ -34,6 +34,7 @@ let _client = null;
 let _connected = false;
 let _itemLocationTableReady = false;
 let _itemLocationTemplateTableReady = false;
+let _itemLocationGroupTableReady = false;
 
 /**
  * DB 클라이언트 반환 (싱글톤). 필요 시 새로 생성.
@@ -142,6 +143,38 @@ async function ensureItemLocationTemplateTable() {
     )
   `);
   _itemLocationTemplateTableReady = true;
+}
+
+async function ensureItemLocationGroupTable() {
+  if (_itemLocationGroupTableReady) return;
+  await query(`
+    CREATE TABLE IF NOT EXISTS public."ItemLocationGroup" (
+      id BIGSERIAL PRIMARY KEY,
+      name TEXT NOT NULL UNIQUE,
+      sort_order INTEGER DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+
+  const countRes = await query(
+    'SELECT COUNT(*)::INTEGER AS count FROM public."ItemLocationGroup"',
+    [],
+  );
+  const rowCount = Number(countRes.rows?.[0]?.count || 0);
+  if (rowCount === 0) {
+    const defaultGroups = ["마녀", "바닐라코", "무지"];
+    for (let i = 0; i < defaultGroups.length; i += 1) {
+      await query(
+        `INSERT INTO public."ItemLocationGroup" (name, sort_order)
+         VALUES ($1, $2)
+         ON CONFLICT (name) DO NOTHING`,
+        [defaultGroups[i], i + 1],
+      );
+    }
+  }
+
+  _itemLocationGroupTableReady = true;
 }
 
 /**
@@ -659,6 +692,7 @@ async function saveItemLocation(payload = {}) {
   const workerName = String(payload.workerName || "").trim();
 
   if (!productName || !groupName || !location) return null;
+  await addItemLocationGroup(groupName);
 
   if (id) {
     const updateRes = await query(
@@ -739,6 +773,93 @@ async function saveItemLocationExcelTemplate(buffer, filename) {
   return true;
 }
 
+async function getItemLocationGroups() {
+  await ensureItemLocationTable();
+  await ensureItemLocationGroupTable();
+  const [groupRes, usedGroupRes] = await Promise.all([
+    query(
+      `SELECT id, name, sort_order, created_at, updated_at
+       FROM public."ItemLocationGroup"
+       ORDER BY sort_order ASC, id ASC`,
+      [],
+    ),
+    query(
+      `SELECT DISTINCT TRIM(group_name) AS name
+       FROM public."ItemLocation"
+       WHERE COALESCE(TRIM(group_name), '') <> ''
+       ORDER BY name ASC`,
+      [],
+    ),
+  ]);
+
+  const groups = groupRes.rows || [];
+  const existingNames = new Set(
+    groups.map((row) => String(row.name || "").trim()).filter(Boolean),
+  );
+  const mergedGroups = [...groups];
+  let nextSortOrder = groups.reduce(
+    (maxValue, row) => Math.max(maxValue, Number(row.sort_order) || 0),
+    0,
+  );
+
+  (usedGroupRes.rows || []).forEach((row) => {
+    const groupName = String(row.name || "").trim();
+    if (!groupName || existingNames.has(groupName)) return;
+    nextSortOrder += 1;
+    mergedGroups.push({
+      id: null,
+      name: groupName,
+      sort_order: nextSortOrder,
+      created_at: null,
+      updated_at: null,
+    });
+    existingNames.add(groupName);
+  });
+
+  return mergedGroups;
+}
+
+async function addItemLocationGroup(name) {
+  await ensureItemLocationGroupTable();
+  const groupName = String(name || "").trim();
+  if (!groupName) return null;
+
+  const duplicateRes = await query(
+    `SELECT id, name, sort_order, created_at, updated_at
+     FROM public."ItemLocationGroup"
+     WHERE name = $1
+     LIMIT 1`,
+    [groupName],
+  );
+  if (duplicateRes.rows?.[0]) {
+    return { duplicate: true, row: duplicateRes.rows[0] };
+  }
+
+  const nextOrderRes = await query(
+    'SELECT COALESCE(MAX(sort_order), 0) + 1 AS next_order FROM public."ItemLocationGroup"',
+    [],
+  );
+  const nextOrder = Number(nextOrderRes.rows?.[0]?.next_order || 1);
+  const insertRes = await query(
+    `INSERT INTO public."ItemLocationGroup" (name, sort_order, updated_at)
+     VALUES ($1, $2, NOW())
+     RETURNING id, name, sort_order, created_at, updated_at`,
+    [groupName, nextOrder],
+  );
+  return { duplicate: false, row: insertRes.rows?.[0] || null };
+}
+
+async function deleteItemLocationGroup(name) {
+  await ensureItemLocationGroupTable();
+  const groupName = String(name || "").trim();
+  if (!groupName) return false;
+  const res = await query(
+    'DELETE FROM public."ItemLocationGroup" WHERE name = $1',
+    [groupName],
+  );
+  return res.rowCount > 0;
+}
+
 module.exports = {
   getClient,
   testConnection,
@@ -773,5 +894,8 @@ module.exports = {
   markItemLocationMissing,
   getItemLocationExcelTemplate,
   saveItemLocationExcelTemplate,
+  getItemLocationGroups,
+  addItemLocationGroup,
+  deleteItemLocationGroup,
 };
 

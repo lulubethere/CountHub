@@ -192,6 +192,17 @@
       }
     }
 
+    async function syncItemLocationTemplateGroups(groups = itemGroups) {
+      const result = await ipcRenderer.invoke("sync-item-location-template-groups", {
+        groups,
+      });
+      if (!result?.ok) {
+        showToast(result?.error || "엑셀 양식 그룹 동기화에 실패했습니다.", true);
+        return false;
+      }
+      return true;
+    }
+
     function openConfirmModal({ title, message, okText, cancelText }) {
       if (confirmTitle) confirmTitle.textContent = title || "확인";
       if (confirmMessage) confirmMessage.textContent = message || "";
@@ -908,7 +919,7 @@
       showToast("엑셀 파일을 첨부했습니다.");
     });
 
-    btnAddGroup?.addEventListener("click", () => {
+    btnAddGroup?.addEventListener("click", async () => {
       const newGroup = String(groupSettingsInput?.value || "").trim();
       if (!newGroup) {
         showToast("그룹명을 입력해주세요.", true);
@@ -918,7 +929,10 @@
         showToast("이미 등록된 그룹입니다.", true);
         return;
       }
-      itemGroups.push(newGroup);
+      const nextGroups = [...itemGroups, newGroup];
+      const synced = await runWithLoading(() => syncItemLocationTemplateGroups(nextGroups));
+      if (!synced) return;
+      itemGroups = nextGroups;
       saveGroups();
       renderGroupOptions(groupNameSelect.value);
       renderGroupSettingsList();
@@ -945,7 +959,10 @@
         cancelText: "취소",
       });
       if (!ok) return;
-      itemGroups = itemGroups.filter((group) => group !== targetGroup);
+      const nextGroups = itemGroups.filter((group) => group !== targetGroup);
+      const synced = await runWithLoading(() => syncItemLocationTemplateGroups(nextGroups));
+      if (!synced) return;
+      itemGroups = nextGroups;
       saveGroups();
       renderGroupOptions();
       renderGroupSettingsList();

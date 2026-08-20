@@ -1,0 +1,29 @@
+services:
+  - name: counthub-mobile-api
+    type: web
+    runtime: node
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm run mobile:server
+    healthCheckPath: /api/mobile/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MOBILE_API_PORT
+        fromService:
+          type: web
+          name: counthub-mobile-api
+          property: port
+      - key: MOBILE_API_HOST
+        value: 0.0.0.0
+      - key: SUPABASE_DB_HOST
+        sync: false
+      - key: SUPABASE_DB_PORT
+        sync: false
+      - key: SUPABASE_DB_NAME
+        sync: false
+      - key: SUPABASE_DB_USER
+        sync: false
+      - key: SUPABASE_DB_PASSWORD
+        sync: false

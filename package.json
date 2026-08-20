@@ -4,6 +4,14 @@
   "main": "js/main.js",
   "scripts": {
     "start": "chcp 65001 >nul && electron .",
+    "mobile:api": "node js/mobile-api.js",
+    "mobile:server": "node js/mobile-api.js",
+    "mobile:buildweb": "node scripts/build-mobile-web.js",
+    "mobile:sync": "npm run mobile:buildweb && npx cap sync android",
+    "mobile:icons": "powershell -ExecutionPolicy Bypass -File scripts/generate-android-icons.ps1",
+    "mobile:android": "npm run mobile:sync && npx cap open android",
+    "mobile:apk": "npm run mobile:sync && cd android && gradlew.bat assembleDebug",
+    "mobile:release": "npm run mobile:sync && npm run mobile:icons && cd android && gradlew.bat assembleRelease bundleRelease",
     "test:db": "node scripts/test-db.js",
     "build": "electron-builder"
   },
@@ -12,6 +20,9 @@
   "license": "ISC",
   "description": "",
   "devDependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "electron": "^40.4.1",
     "electron-builder": "^26.8.1"
   },

@@ -81,6 +81,10 @@ out
 # Nuxt.js build / generate output
 .nuxt
 dist
+mobile-web/
+android/local.properties
+android/keystore.properties
+android/keystore/
 
 # Gatsby files
 .cache/

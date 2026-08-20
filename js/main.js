@@ -760,6 +760,15 @@ ipcMain.handle("open-item-location-template", async (_, payload) => {
   }
 });
 
+ipcMain.handle("sync-item-location-template-groups", async (_, payload) => {
+  try {
+    await ensureItemLocationTemplateStored(payload?.groups || []);
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
+});
+
 ipcMain.handle("preview-item-location-bulk-excel", async (_, payload) => {
   try {
     return await buildItemLocationBulkPreview(

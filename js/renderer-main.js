@@ -20,4 +20,7 @@
   document.getElementById('item-location-btn').addEventListener('click', () => {
     window.location.href = '05 item-location.html';
   });
+  document.getElementById('mobile-item-location-btn').addEventListener('click', () => {
+    window.location.href = '06 mobile-item-location.html';
+  });
 })();
